@@ -37,21 +37,28 @@ impl PinTrace {
 		let header = Header::from_reader(reader).context("Unable to read header")?;
 		tracing::trace!(?header, "Parsed header");
 
-		// And align to 16-bytes
-		{
-			let cur_pos = reader
-				.stream_position()
-				.context("Unable to get current stream position")?;
-			let aligned_pos = 0x10 * ((cur_pos + 0xf) / 0x10);
-			reader
-				.seek(io::SeekFrom::Start(aligned_pos))
-				.context("Unable to align to 16-byte")?;
-		}
+		// Get the total number of records
+		let total_records = {
+			let magic_size = Self::MAGIC.len() as u64;
+			let header_size = Header::BYTE_SIZE as u64;
+			let record_size = Record::BYTE_SIZE as u64;
+
+
+			let total_actual_size = reader.stream_len().context("Unable to get stream length")?;
+			let total_expected_size = magic_size + header_size + header.records * record_size;
+			if total_actual_size != total_expected_size {
+				tracing::warn!(
+					"Pin trace size differs from expected. Found {total_actual_size}, expected {total_expected_size}"
+				);
+			}
+
+			(total_actual_size - magic_size - header_size) / record_size
+		};
 
 		let mut records =
-			Vec::with_capacity(usize::try_from(header.records).context("Total records didn't fit into a `usize`")?);
-		for _ in 0..header.records {
-			let record = Record::from_reader(reader).context("Unable to read record")?;
+			Vec::with_capacity(usize::try_from(total_records).context("Total records didn't fit into a `usize`")?);
+		for record_idx in 0..total_records {
+			let record = Record::from_reader(reader).with_context(|| format!("Unable to read record {record_idx}"))?;
 			records.push(record);
 		}
 
@@ -83,8 +90,12 @@ pub struct Header {
 }
 
 impl Header {
+	/// Returns the size of this header (including any padding)
+	pub const BYTE_SIZE: usize = 0x38;
+
 	/// Parses a header from a reader
-	pub fn from_reader<R: io::Read>(reader: &mut R) -> Result<Self, anyhow::Error> {
+	pub fn from_reader<R: io::Read + io::Seek>(reader: &mut R) -> Result<Self, anyhow::Error> {
+		// Read the fields
 		let records = reader.read_u64::<LittleEndian>().context("Unable to read records")?;
 		let rate = reader.read_u64::<LittleEndian>().context("Unable to read rate")?;
 		let load_misses = reader
@@ -99,6 +110,11 @@ impl Header {
 		let store_accesses = reader
 			.read_u64::<LittleEndian>()
 			.context("Unable to read store accesses")?;
+
+		// Then seek over the padding
+		reader
+			.seek(io::SeekFrom::Current(8))
+			.context("Unable to seek over padding")?;
 
 		Ok(Self {
 			records,
@@ -125,10 +141,15 @@ pub struct Record {
 }
 
 impl Record {
+	/// Returns the size of this record
+	pub const BYTE_SIZE: usize = 0x16;
+
 	/// Parses a record from a reader
 	pub fn from_reader<R: io::Read>(reader: &mut R) -> Result<Self, anyhow::Error> {
-		let time = reader.read_u64::<LittleEndian>().context("Unable to read records")?;
-		let addr_with_kind = reader.read_u64::<LittleEndian>().context("Unable to read rate")?;
+		let time = reader.read_u64::<LittleEndian>().context("Unable to read time")?;
+		let addr_with_kind = reader
+			.read_u64::<LittleEndian>()
+			.context("Unable to read address + kind")?;
 
 		let addr = addr_with_kind & !0xfff;
 		let kind = match addr_with_kind & 0xfff {
