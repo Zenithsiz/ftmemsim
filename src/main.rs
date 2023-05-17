@@ -14,7 +14,7 @@ mod util;
 // Imports
 use {
 	self::{args::Args, pin_trace::PinTrace},
-	crate::sim::Simulator,
+	crate::{classifiers::hemem, sim::Simulator, util::FemtoDuration},
 	anyhow::Context,
 	clap::Parser,
 	std::fs,
@@ -37,9 +37,28 @@ fn main() -> Result<(), anyhow::Error> {
 
 	// Run the simulator
 	let mut sim = Simulator::new(0);
-	let mut hemem_classifier = classifiers::hemem::HeMem::new();
+	let mut hemem = hemem::HeMem::new(
+		hemem::Config {
+			read_hot_threshold:       8,
+			write_hot_threshold:      4,
+			global_cooling_threshold: 18,
+		},
+		vec![
+			hemem::Memory::new("ram", 100, hemem::memories::AccessLatencies {
+				read:  FemtoDuration::from_nanos_f64(1.5),
+				write: FemtoDuration::from_nanos_f64(1.0),
+				fault: FemtoDuration::from_nanos_f64(10.0),
+			}),
+			hemem::Memory::new("optane", 800, hemem::memories::AccessLatencies {
+				read:  FemtoDuration::from_nanos_f64(5.0),
+				write: FemtoDuration::from_nanos_f64(4.0),
+				fault: FemtoDuration::from_nanos_f64(50.0),
+			}),
+		],
+	);
 
-	sim.run(pin_trace.records.iter().copied(), &mut hemem_classifier);
+	sim.run(pin_trace.records.iter().copied(), &mut hemem)
+		.context("Unable to run simulator")?;
 
 	Ok(())
 }

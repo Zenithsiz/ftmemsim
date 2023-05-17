@@ -1,9 +1,10 @@
 //! Simulator
 
 // Imports
-use crate::pin_trace;
+use {crate::pin_trace, anyhow::Context};
 
 /// Simulator
+#[derive(Debug)]
 pub struct Simulator {
 	/// Trace skip
 	///
@@ -20,11 +21,19 @@ impl Simulator {
 	}
 
 	/// Runs the simulator on records `records` with classifier `classifier`
-	pub fn run<C: Classifier>(&mut self, records: impl IntoIterator<Item = pin_trace::Record>, classifier: &mut C) {
+	pub fn run<C: Classifier>(
+		&mut self,
+		records: impl IntoIterator<Item = pin_trace::Record>,
+		classifier: &mut C,
+	) -> Result<(), anyhow::Error> {
 		for record in records.into_iter().step_by(self.trace_skip + 1) {
 			let trace = Trace { record };
-			classifier.handle_trace(trace);
+			classifier
+				.handle_trace(trace)
+				.context("Unable to handle trace with classifier")?;
 		}
+
+		Ok(())
 	}
 }
 
@@ -32,7 +41,7 @@ impl Simulator {
 /// Classifier
 pub trait Classifier {
 	/// Handles a trace
-	fn handle_trace(&mut self, trace: Trace);
+	fn handle_trace(&mut self, trace: Trace) -> Result<(), anyhow::Error>;
 }
 
 /// Trace
