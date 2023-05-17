@@ -5,13 +5,16 @@
 
 // Modules
 mod args;
+mod classifiers;
 mod logger;
 mod pin_trace;
+mod sim;
 mod util;
 
 // Imports
 use {
 	self::{args::Args, pin_trace::PinTrace},
+	crate::sim::Simulator,
 	anyhow::Context,
 	clap::Parser,
 	std::fs,
@@ -32,6 +35,11 @@ fn main() -> Result<(), anyhow::Error> {
 	};
 	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace, "Parsed pin trace");
 
+	// Run the simulator
+	let mut sim = Simulator::new(0);
+	let mut hemem_classifier = classifiers::hemem::HeMem::new();
+
+	sim.run(pin_trace.records.iter().copied(), &mut hemem_classifier);
 
 	Ok(())
 }
