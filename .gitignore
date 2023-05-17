@@ -1,0 +1,9 @@
+# Rust
+/target
+
+# Resources
+/resources
+
+# Logs
+/logs
+*.log
