@@ -1,5 +1,11 @@
 //! Utilities
 
+// Modules
+mod duration;
+
+// Exports
+pub use duration::FemtoDuration;
+
 // Imports
 use std::io;
 
