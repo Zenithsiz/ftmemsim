@@ -82,7 +82,7 @@ pub struct MemIdx(usize);
 #[derive(Clone, Debug)]
 pub struct Memory {
 	/// Name
-	_name: String,
+	name: String,
 
 	// Page size/capacity
 	page_len:      usize,
@@ -96,7 +96,7 @@ impl Memory {
 	/// Creates a new memory
 	pub fn new(name: impl Into<String>, page_capacity: usize, latencies: AccessLatencies) -> Self {
 		Self {
-			_name: name.into(),
+			name: name.into(),
 			page_len: 0,
 			page_capacity,
 			_latencies: latencies,
@@ -133,6 +133,21 @@ impl Memory {
 	/// Returns if this memory is full
 	pub fn is_full(&self) -> bool {
 		self.page_len >= self.page_capacity
+	}
+
+	/// Returns this memory's name
+	pub fn name(&self) -> &str {
+		&self.name
+	}
+
+	/// Returns the number of resident pages in this memory
+	pub fn page_len(&self) -> usize {
+		self.page_len
+	}
+
+	/// Returns the page capacity of this memory
+	pub fn page_capacity(&self) -> usize {
+		self.page_capacity
 	}
 }
 

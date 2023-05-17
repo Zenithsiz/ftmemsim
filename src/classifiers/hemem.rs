@@ -3,11 +3,13 @@
 // Modules
 pub mod memories;
 pub mod page_table;
+pub mod statistics;
 
 // Exports
 pub use self::{
 	memories::{Memories, Memory},
 	page_table::{Page, PagePtr, PageTable},
+	statistics::Statistics,
 };
 
 // Imports
@@ -15,6 +17,7 @@ use {
 	self::memories::MemIdx,
 	crate::{pin_trace, sim},
 	anyhow::Context,
+	std::fmt,
 };
 
 /// Hemem classifier
@@ -28,6 +31,9 @@ pub struct HeMem {
 
 	/// Page table
 	page_table: PageTable,
+
+	/// Statistics
+	statistics: Statistics,
 }
 
 impl HeMem {
@@ -37,6 +43,7 @@ impl HeMem {
 			config,
 			memories: Memories::new(memories),
 			page_table: PageTable::new(),
+			statistics: Statistics::new(),
 		}
 	}
 
@@ -181,12 +188,15 @@ impl sim::Classifier for HeMem {
 		let page_ptr = PagePtr::new(trace.record.addr);
 
 		// Map the page if it doesn't exist
+		let page_prev_mem_idx = self.page_table.get_mut(page_ptr).map(|page| page.mem_idx());
 		if !self.page_table.contains(page_ptr) {
 			tracing::trace!(?page_ptr, "Mapping page");
 			self.map_page(page_ptr).context("Unable to map page")?;
 		};
 		let page = self.page_table.get_mut(page_ptr).expect("Page wasn't in page table");
 		let page_was_hot = page.is_hot(self.config.read_hot_threshold, self.config.write_hot_threshold);
+		let page_prev_temperature = page.temperature();
+
 
 		// Register the access on the page
 		match trace.record.kind {
@@ -202,6 +212,8 @@ impl sim::Classifier for HeMem {
 		// Finally check if it's still hot and adjust if necessary
 		let page = self.page_table.get_mut(page_ptr).expect("Page wasn't in page table");
 		let page_is_hot = page.is_hot(self.config.read_hot_threshold, self.config.write_hot_threshold);
+		let page_cur_mem_idx = page.mem_idx();
+		let page_cur_temperature = page.temperature();
 
 		// If the page isn't hot and it was hot, cool it
 		if !page_is_hot && page_was_hot {
@@ -217,6 +229,40 @@ impl sim::Classifier for HeMem {
 			if let Err(err) = self.warm_page(page_ptr) {
 				tracing::trace!(?page_ptr, ?err, "Unable to warm page");
 			}
+		}
+
+		// Finally register the access in our statistics
+		self.statistics.register_access(statistics::Access {
+			time: trace.record.time,
+			page_ptr,
+			kind: match trace.record.kind {
+				pin_trace::RecordAccessKind::Read => statistics::AccessKind::Read,
+				pin_trace::RecordAccessKind::Write => statistics::AccessKind::Write,
+			},
+			mem: match page_prev_mem_idx {
+				Some(mem_idx) => statistics::AccessMem::Resided(mem_idx),
+				None => statistics::AccessMem::Mapped(page_cur_mem_idx),
+			},
+			prev_temperature: page_prev_temperature,
+			cur_temperature: page_cur_temperature,
+		});
+
+		Ok(())
+	}
+
+	fn fmt_debug(&mut self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+		// Note: Start with a newline, since we're a multi-line output
+		f.pad("\n")?;
+
+		for (mem_idx, memory) in self.memories.iter_mut() {
+			let name = memory.name();
+			let len = memory.page_len();
+			let capacity = memory.page_capacity();
+			let occupancy_percentage = 100.0 * (len as f64 / capacity as f64);
+			writeln!(
+				f,
+				"Memory {name} ({mem_idx:?}): {len} / {capacity} ({occupancy_percentage:.2}%)"
+			)?;
 		}
 
 		Ok(())

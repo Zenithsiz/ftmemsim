@@ -17,7 +17,7 @@ use {
 	crate::{classifiers::hemem, sim::Simulator, util::FemtoDuration},
 	anyhow::Context,
 	clap::Parser,
-	std::fs,
+	std::{fs, time::Duration},
 };
 
 fn main() -> Result<(), anyhow::Error> {
@@ -36,7 +36,7 @@ fn main() -> Result<(), anyhow::Error> {
 	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace, "Parsed pin trace");
 
 	// Run the simulator
-	let mut sim = Simulator::new(0);
+	let mut sim = Simulator::new(0, Duration::from_secs_f64(0.1));
 	let mut hemem = hemem::HeMem::new(
 		hemem::Config {
 			read_hot_threshold:       8,
