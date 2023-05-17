@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.71"
+average = "0.13.1"
 byteorder = "1.4.3"
 clap = { version = "4.2.7", features = ["derive"] }
 extend = "1.2.0"

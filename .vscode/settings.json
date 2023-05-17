@@ -6,6 +6,7 @@
     "ftmemsim",
     "hemem",
     "itertools",
+    "minmax",
     "optane",
     "pico",
     "PICOS"

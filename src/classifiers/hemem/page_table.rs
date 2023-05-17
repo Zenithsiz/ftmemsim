@@ -68,7 +68,7 @@ impl PageTable {
 	}
 
 	/// Returns the `count` coldest pages in memory `mem_idx`
-	// TODO: Optimize this function? Runs in `O(N)` with all memories
+	// TODO: Optimize this function? Runs in `O(N)` with all pages
 	pub fn coldest_pages(&mut self, mem_idx: MemIdx, count: usize) -> Vec<PagePtr> {
 		self.pages
 			.iter_mut()

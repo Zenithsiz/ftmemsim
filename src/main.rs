@@ -34,7 +34,7 @@ fn main() -> Result<(), anyhow::Error> {
 	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace_reader, "Parsed pin trace");
 
 	// Run the simulator
-	let mut sim = Simulator::new(0, Duration::from_secs_f64(0.1));
+	let mut sim = Simulator::new(0, Duration::from_secs_f64(1.0));
 	let mut hemem = hemem::HeMem::new(
 		hemem::Config {
 			read_hot_threshold:       8,
