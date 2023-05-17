@@ -8,22 +8,25 @@ use {
 	std::io,
 };
 
-/// Pin trace
+/// Pin trace reader
 #[derive(Clone, Debug)]
-pub struct PinTrace {
+pub struct PinTraceReader<R> {
 	/// Header
-	pub header: Header,
+	_header: Header,
 
-	/// All records
-	pub records: Vec<Record>,
+	/// Records remaining
+	records_remaining: u64,
+
+	/// Reader
+	reader: R,
 }
 
-impl PinTrace {
+impl<R: io::Read + io::Seek> PinTraceReader<R> {
 	/// Magic
 	pub const MAGIC: [u8; 8] = *b"PINT v0\0";
 
 	/// Parses a pin trace from a reader
-	pub fn from_reader<R: io::Read + io::Seek>(reader: &mut R) -> Result<Self, anyhow::Error> {
+	pub fn from_reader(mut reader: R) -> Result<Self, anyhow::Error> {
 		// Read the magic
 		let magic = reader.read_byte_array().context("Unable to read magic")?;
 		anyhow::ensure!(
@@ -34,10 +37,11 @@ impl PinTrace {
 		);
 
 		// Read the header
-		let header = Header::from_reader(reader).context("Unable to read header")?;
+		let header = Header::from_reader(&mut reader).context("Unable to read header")?;
 		tracing::trace!(?header, "Parsed header");
 
 		// Get the total number of records
+		// TODO: Not have this hack here?
 		let total_records = {
 			let magic_size = Self::MAGIC.len() as u64;
 			let header_size = Header::BYTE_SIZE as u64;
@@ -55,14 +59,30 @@ impl PinTrace {
 			(total_actual_size - magic_size - header_size) / record_size
 		};
 
-		let mut records =
-			Vec::with_capacity(usize::try_from(total_records).context("Total records didn't fit into a `usize`")?);
-		for record_idx in 0..total_records {
-			let record = Record::from_reader(reader).with_context(|| format!("Unable to read record {record_idx}"))?;
-			records.push(record);
+		Ok(Self {
+			_header: header,
+			records_remaining: total_records,
+			reader,
+		})
+	}
+
+	/// Reads the next record
+	pub fn read_next(&mut self) -> Result<Option<Record>, anyhow::Error> {
+		// If we're done, return `None`
+		if self.records_remaining == 0 {
+			return Ok(None);
 		}
 
-		Ok(Self { header, records })
+		// Else parse the next record and reduce the remaining records
+		let record = Record::from_reader(&mut self.reader).context("Unable to read record")?;
+		self.records_remaining -= 1;
+
+		Ok(Some(record))
+	}
+
+	/// Returns the remaining records
+	pub fn records_remaining(&self) -> u64 {
+		self.records_remaining
 	}
 }
 

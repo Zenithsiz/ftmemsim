@@ -13,7 +13,7 @@ mod util;
 
 // Imports
 use {
-	self::{args::Args, pin_trace::PinTrace},
+	self::{args::Args, pin_trace::PinTraceReader},
 	crate::{classifiers::hemem, sim::Simulator, util::FemtoDuration},
 	anyhow::Context,
 	clap::Parser,
@@ -29,11 +29,9 @@ fn main() -> Result<(), anyhow::Error> {
 	logger::init(args.log_file.as_deref(), args.log_file_append);
 
 	// Read the trace file
-	let pin_trace = {
-		let mut pin_trace_file = fs::File::open(&args.trace_file).context("Unable to open trace file")?;
-		PinTrace::from_reader(&mut pin_trace_file).context("Unable to parse pin trace")?
-	};
-	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace, "Parsed pin trace");
+	let mut pin_trace_file = fs::File::open(&args.trace_file).context("Unable to open trace file")?;
+	let mut pin_trace_reader = PinTraceReader::from_reader(&mut pin_trace_file).context("Unable to parse pin trace")?;
+	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace_reader, "Parsed pin trace");
 
 	// Run the simulator
 	let mut sim = Simulator::new(0, Duration::from_secs_f64(0.1));
@@ -44,12 +42,12 @@ fn main() -> Result<(), anyhow::Error> {
 			global_cooling_threshold: 18,
 		},
 		vec![
-			hemem::Memory::new("ram", 100, hemem::memories::AccessLatencies {
+			hemem::Memory::new("ram", 100 * 100, hemem::memories::AccessLatencies {
 				read:  FemtoDuration::from_nanos_f64(1.5),
 				write: FemtoDuration::from_nanos_f64(1.0),
 				fault: FemtoDuration::from_nanos_f64(10.0),
 			}),
-			hemem::Memory::new("optane", 800, hemem::memories::AccessLatencies {
+			hemem::Memory::new("optane", 800 * 100, hemem::memories::AccessLatencies {
 				read:  FemtoDuration::from_nanos_f64(5.0),
 				write: FemtoDuration::from_nanos_f64(4.0),
 				fault: FemtoDuration::from_nanos_f64(50.0),
@@ -57,7 +55,7 @@ fn main() -> Result<(), anyhow::Error> {
 		],
 	);
 
-	sim.run(pin_trace.records.iter().copied(), &mut hemem)
+	sim.run(&mut pin_trace_reader, &mut hemem)
 		.context("Unable to run simulator")?;
 
 	Ok(())

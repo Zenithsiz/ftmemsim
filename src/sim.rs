@@ -2,10 +2,11 @@
 
 // Imports
 use {
-	crate::{pin_trace, util},
+	crate::{pin_trace, pin_trace::PinTraceReader, util},
 	anyhow::Context,
 	std::{
 		fmt,
+		io,
 		time::{Duration, Instant},
 	},
 };
@@ -35,17 +36,23 @@ impl Simulator {
 		}
 	}
 
-	/// Runs the simulator on records `records` with classifier `classifier`
+	/// Runs the simulator on all traces from `pin_trace_reader` with classifier `classifier`
 	pub fn run<C: Classifier>(
 		&mut self,
-		records: impl IntoIterator<Item = pin_trace::Record>,
+		pin_trace_reader: &mut PinTraceReader<impl io::Read + io::Seek>,
 		classifier: &mut C,
 	) -> Result<(), anyhow::Error> {
 		// Note: We start in the past so that we output right away at the start
 		let mut last_debug_time = Instant::now() - self.debug_output_freq;
 
+		// Create the record iterator
+		let total_records = pin_trace_reader.records_remaining();
+		let record_it = std::iter::from_fn(|| pin_trace_reader.read_next().transpose());
+
 		// Go through all records
-		for record in records.into_iter().step_by(self.trace_skip + 1) {
+		for (record_idx, record_res) in record_it.enumerate().step_by(self.trace_skip + 1) {
+			let record = record_res.context("Unable to read next record")?;
+
 			// Handle each trace
 			let trace = Trace { record };
 			classifier
@@ -55,7 +62,11 @@ impl Simulator {
 			// Then show debug output, if it's been long enough
 			let cur_time = Instant::now();
 			if cur_time.duration_since(last_debug_time) >= self.debug_output_freq {
-				tracing::info!("Debug: {}", util::DisplayWrapper::new(|f| classifier.fmt_debug(f)));
+				let records_processed_percentage = 100.0 * (record_idx as f64 / total_records as f64);
+				tracing::info!(
+					"[{records_processed_percentage:.2}%] Debug: {}",
+					util::DisplayWrapper::new(|f| classifier.fmt_debug(f))
+				);
 				last_debug_time = cur_time
 			}
 		}
