@@ -111,7 +111,7 @@ fn colors_enabled() -> bool {
 #[must_use]
 fn get_env_filters(env: &str, default: &str) -> String {
 	// Default filters
-	let default_filters = [(None, default)];
+	let default_filters = [(None, default), (Some("ftmemsim::parse_pin_trace"), "debug")];
 
 	// Get the current filters
 	let env_var;

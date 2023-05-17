@@ -17,4 +17,7 @@ pub struct Args {
 	/// Whether to append to the log file
 	#[clap(long = "log-file-append")]
 	pub log_file_append: bool,
+
+	/// Trace file
+	pub trace_file: PathBuf,
 }
