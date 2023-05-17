@@ -68,25 +68,24 @@ impl PinTrace {
 
 /// Header
 #[derive(Clone, Copy, Debug)]
-#[expect(dead_code)] // We'll use them when calculating statistics later on
 pub struct Header {
 	/// Total records
 	records: u64,
 
 	/// Rate
-	rate: u64,
+	_rate: u64,
 
 	/// Load misses
-	load_misses: u64,
+	_load_misses: u64,
 
 	/// Load accesses
-	load_accesses: u64,
+	_load_accesses: u64,
 
 	/// Store misses
-	store_misses: u64,
+	_store_misses: u64,
 
 	/// Store accesses
-	store_accesses: u64,
+	_store_accesses: u64,
 }
 
 impl Header {
@@ -118,11 +117,11 @@ impl Header {
 
 		Ok(Self {
 			records,
-			rate,
-			load_misses,
-			load_accesses,
-			store_misses,
-			store_accesses,
+			_rate: rate,
+			_load_misses: load_misses,
+			_load_accesses: load_accesses,
+			_store_misses: store_misses,
+			_store_accesses: store_accesses,
 		})
 	}
 }
