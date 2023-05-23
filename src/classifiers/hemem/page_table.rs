@@ -138,7 +138,7 @@ impl Page {
 	/// Returns this page's temperature
 	pub fn temperature(&self) -> usize {
 		// TODO: Tune this definition?
-		self.adjusted_read_accesses * 1 + self.adjusted_write_accesses * 2
+		self.adjusted_read_accesses + self.adjusted_write_accesses * 2
 	}
 
 	/// Returns if either read or write accesses are over a threshold
@@ -173,7 +173,7 @@ impl std::fmt::Debug for PagePtr {
 
 impl PagePtr {
 	/// Page mask
-	pub const PAGE_MASK: u64 = (1 << 12 - 1);
+	pub const PAGE_MASK: u64 = (1 << 12) - 1;
 
 	/// Creates a page pointer from a `u64`.
 	///
