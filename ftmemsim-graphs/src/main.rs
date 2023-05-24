@@ -1,5 +1,10 @@
 //! Creates graphs from `ftmemsim`'s output
 
+// Features
+#![feature(lint_reasons)]
+
+use plotlib::style::{LineJoin, LineStyle};
+
 // Modules
 mod args;
 
@@ -125,19 +130,67 @@ fn main() -> Result<(), anyhow::Error> {
 				.collect::<Vec<_>>();
 
 			// Finally build the histogram and render it
-			let hist = Histogram::from_slice(&data, HistogramBins::Count(max_migrations - 1))
+			let hist = Histogram::from_slice(&data, HistogramBins::Count(20.min(max_migrations) - 1))
 				.style(&BoxStyle::new().fill("burlywood"));
 
-			let x_scale = 5;
 			let view = ContinuousView::new()
 				.add(hist)
-				.x_max_ticks((max_migrations + 1).min(20 * (x_scale as usize)))
+				.x_max_ticks(20.min(max_migrations))
 				.y_max_ticks(6)
 				.x_label("Migrations")
 				.y_label("Occurrences");
 
 			Page::single(&view)
-				.dimensions(640 * x_scale, 480)
+				.dimensions(640, 480)
+				.save(output_file)
+				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
+		},
+		args::SubCmd::PageTemperature {
+			input_file,
+			output_file,
+		} => {
+			// Parse the page accesses
+			let page_accesses = {
+				let page_accesses_file = std::fs::File::open(input_file).context("Unable to open input file")?;
+				serde_json::from_reader::<_, ftmemsim_util::PageAccesses>(page_accesses_file)
+					.context("Unable to parse input file")?
+			};
+
+			let (min_time, max_time) = page_accesses
+				.accesses
+				.iter()
+				.map(|page_access| page_access.time)
+				.minmax()
+				.into_option()
+				.unwrap_or((0, 1));
+
+			let mut temp_cur_average = 0.0;
+			let temp_points = page_accesses
+				.accesses
+				.iter()
+				.enumerate()
+				.map(|(idx, page_access)| {
+					temp_cur_average += page_access.cur_temp as f64;
+					(
+						(page_access.time - min_time) as f64 / (max_time - min_time) as f64,
+						temp_cur_average / (idx as f64 + 1.0),
+					)
+				})
+				.collect::<Vec<_>>();
+
+			// Finally build the plot and render it
+			let temp_plot = Plot::new(temp_points)
+				.line_style(LineStyle::new().width(1.0).colour("#000000").linejoin(LineJoin::Round));
+
+			let view = ContinuousView::new()
+				.add(temp_plot)
+				.x_max_ticks(6)
+				.y_max_ticks(6)
+				.x_label("Time")
+				.y_label("Temperature");
+
+			Page::single(&view)
+				.dimensions(640, 480)
 				.save(output_file)
 				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
 		},

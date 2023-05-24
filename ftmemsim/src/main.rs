@@ -58,11 +58,21 @@ fn main() -> Result<(), anyhow::Error> {
 	sim.run(&mut pin_trace_reader, &mut hemem)
 		.context("Unable to run simulator")?;
 
-	// TODO: Make location configurable
-	let page_locations_file =
-		fs::File::create("resources/data/page_locations.json").context("Unable to create page locations file")?;
-	let page_locations = hemem.page_locations();
-	serde_json::to_writer(page_locations_file, &page_locations).context("Unable to write to page locations file")?;
+	// TODO: Make locations configurable
+	{
+		let page_locations_file =
+			fs::File::create("resources/data/page_locations.json").context("Unable to create page locations file")?;
+		let page_locations = hemem.page_locations();
+		serde_json::to_writer(page_locations_file, &page_locations)
+			.context("Unable to write to page locations file")?;
+	}
+
+	{
+		let page_accesses_file =
+			fs::File::create("resources/data/page_accesses.json").context("Unable to create page accesses file")?;
+		let page_accesses = hemem.page_accesses();
+		serde_json::to_writer(page_accesses_file, &page_accesses).context("Unable to write to page accesses file")?;
+	}
 
 	Ok(())
 }
