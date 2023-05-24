@@ -1,0 +1,14 @@
+[package]
+name = "ftmemsim-graphs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+clap = { workspace = true }
+tracing = { workspace = true }
+plotlib = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+itertools = { workspace = true }
+ftmemsim-util = { workspace = true }

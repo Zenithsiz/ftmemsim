@@ -183,7 +183,7 @@ impl PagePtr {
 	}
 
 	/// Returns the page pointer as a u64
-	pub fn _to_u64(self) -> u64 {
+	pub fn to_u64(self) -> u64 {
 		self.0
 	}
 }

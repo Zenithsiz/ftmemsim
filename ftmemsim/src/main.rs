@@ -6,7 +6,6 @@
 // Modules
 mod args;
 mod classifiers;
-mod logger;
 mod pin_trace;
 mod sim;
 mod util;
@@ -17,6 +16,7 @@ use {
 	crate::{classifiers::hemem, sim::Simulator, util::FemtoDuration},
 	anyhow::Context,
 	clap::Parser,
+	ftmemsim_util::logger,
 	std::{fs, time::Duration},
 };
 
@@ -34,7 +34,7 @@ fn main() -> Result<(), anyhow::Error> {
 	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace_reader, "Parsed pin trace");
 
 	// Run the simulator
-	let mut sim = Simulator::new(0, Duration::from_secs_f64(1.0));
+	let mut sim = Simulator::new(0, Duration::from_secs_f64(60.0));
 	let mut hemem = hemem::HeMem::new(
 		hemem::Config {
 			read_hot_threshold:       8,
@@ -57,6 +57,12 @@ fn main() -> Result<(), anyhow::Error> {
 
 	sim.run(&mut pin_trace_reader, &mut hemem)
 		.context("Unable to run simulator")?;
+
+	// TODO: Make location configurable
+	let page_locations_file =
+		fs::File::create("resources/data/page_locations.json").context("Unable to create page locations file")?;
+	let page_locations = hemem.page_locations();
+	serde_json::to_writer(page_locations_file, &page_locations).context("Unable to write to page locations file")?;
 
 	Ok(())
 }

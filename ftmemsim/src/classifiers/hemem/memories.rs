@@ -78,6 +78,13 @@ impl Memories {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct MemIdx(usize);
 
+impl MemIdx {
+	/// Returns a memory index as a usize
+	pub fn to_usize(self) -> usize {
+		self.0
+	}
+}
+
 /// Memory
 #[derive(Clone, Debug)]
 pub struct Memory {

@@ -9,6 +9,7 @@
     "minmax",
     "optane",
     "pico",
-    "PICOS"
+    "PICOS",
+    "plotlib"
   ]
 }

@@ -202,6 +202,26 @@ impl HeMem {
 		self.migrate_page(cur_time, page_ptr, dst_mem_idx)
 			.context("Unable to migrate page to faster memory")
 	}
+
+	/// Returns the page locations so far
+	pub fn page_locations(&self) -> ftmemsim_util::PageLocations {
+		ftmemsim_util::PageLocations {
+			locations: self
+				.statistics
+				.page_locations()
+				.iter()
+				.flat_map(|(page_ptr, page_locations)| {
+					page_locations
+						.iter()
+						.map(move |page_location| ftmemsim_util::PageLocation {
+							page_ptr: page_ptr.to_u64(),
+							mem_idx:  page_location.mem_idx.to_usize(),
+							time:     page_location.time,
+						})
+				})
+				.collect(),
+		}
+	}
 }
 
 impl sim::Classifier for HeMem {
