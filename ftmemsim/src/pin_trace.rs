@@ -2,9 +2,9 @@
 
 // Imports
 use {
-	crate::util::ReadByteArray,
 	anyhow::Context,
 	byteorder::{LittleEndian, ReadBytesExt},
+	ftmemsim_util::ReadByteArray,
 	std::io,
 };
 

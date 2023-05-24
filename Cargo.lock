@@ -284,6 +284,7 @@ dependencies = [
 name = "ftmemsim-util"
 version = "0.1.0"
 dependencies = [
+ "extend",
  "itertools",
  "serde",
  "tracing",

@@ -2,7 +2,7 @@
 
 // Imports
 use {
-	crate::{pin_trace, pin_trace::PinTraceReader, util},
+	crate::{pin_trace, pin_trace::PinTraceReader},
 	anyhow::Context,
 	std::{
 		fmt,
@@ -65,7 +65,7 @@ impl Simulator {
 				let records_processed_percentage = 100.0 * (record_idx as f64 / total_records as f64);
 				tracing::info!(
 					"[{records_processed_percentage:.2}%] Debug: {}",
-					util::DisplayWrapper::new(|f| classifier.fmt_debug(f))
+					ftmemsim_util::DisplayWrapper::new(|f| classifier.fmt_debug(f))
 				);
 				last_debug_time = cur_time
 			}

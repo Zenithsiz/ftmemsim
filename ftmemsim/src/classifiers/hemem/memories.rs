@@ -1,7 +1,7 @@
 //! Memories
 
 // Imports
-use crate::util::FemtoDuration;
+use ftmemsim_util::FemtoDuration;
 
 /// Memories.
 ///

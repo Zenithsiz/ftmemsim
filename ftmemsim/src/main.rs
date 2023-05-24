@@ -8,15 +8,14 @@ mod args;
 mod classifiers;
 mod pin_trace;
 mod sim;
-mod util;
 
 // Imports
 use {
 	self::{args::Args, pin_trace::PinTraceReader},
-	crate::{classifiers::hemem, sim::Simulator, util::FemtoDuration},
+	crate::{classifiers::hemem, sim::Simulator},
 	anyhow::Context,
 	clap::Parser,
-	ftmemsim_util::logger,
+	ftmemsim_util::{logger, FemtoDuration},
 	std::{fs, time::Duration},
 };
 
