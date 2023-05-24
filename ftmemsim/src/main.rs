@@ -34,7 +34,7 @@ fn main() -> Result<(), anyhow::Error> {
 	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace_reader, "Parsed pin trace");
 
 	// Run the simulator
-	let mut sim = Simulator::new(0, Duration::from_secs_f64(60.0));
+	let mut sim = Simulator::new(0, Duration::from_secs_f64(1.0));
 	let mut hemem = hemem::HeMem::new(
 		hemem::Config {
 			read_hot_threshold:       8,
@@ -42,12 +42,12 @@ fn main() -> Result<(), anyhow::Error> {
 			global_cooling_threshold: 18,
 		},
 		vec![
-			hemem::Memory::new("ram", 100 * 100, hemem::memories::AccessLatencies {
+			hemem::Memory::new("ram", 1000, hemem::memories::AccessLatencies {
 				read:  FemtoDuration::from_nanos_f64(1.5),
 				write: FemtoDuration::from_nanos_f64(1.0),
 				fault: FemtoDuration::from_nanos_f64(10.0),
 			}),
-			hemem::Memory::new("optane", 800 * 100, hemem::memories::AccessLatencies {
+			hemem::Memory::new("optane", 8000, hemem::memories::AccessLatencies {
 				read:  FemtoDuration::from_nanos_f64(5.0),
 				write: FemtoDuration::from_nanos_f64(4.0),
 				fault: FemtoDuration::from_nanos_f64(50.0),

@@ -27,6 +27,8 @@ pub struct Args {
 #[derive(Debug, clap::Subcommand)]
 pub enum SubCmd {
 	/// Creates a graph for page locations
+	///
+	/// Uses the `page_locations.yaml` data
 	#[clap(name = "page-locations")]
 	PageLocations {
 		/// Input
@@ -59,5 +61,18 @@ pub enum SubCmd {
 		/// Point color
 		#[clap(long = "point-color", default_value_t = { "#000000".to_owned() })]
 		point_color: String,
+	},
+
+	/// Creates a histogram of page migrations
+	///
+	/// Uses the `page_locations.yaml` data
+	#[clap(name = "page-migrations")]
+	PageMigrations {
+		/// Input
+		input_file: PathBuf,
+
+		/// Output
+		#[clap(short = 'o', long = "output")]
+		output_file: PathBuf,
 	},
 }

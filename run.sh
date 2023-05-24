@@ -18,3 +18,6 @@ cargo run --release -p ftmemsim        -- --log-file-append --log-file "$LOG_FIL
 echo "Creating graphs"
 cargo run --release -p ftmemsim-graphs -- --log-file-append --log-file "$LOG_FILE" \
 	page-locations "resources/data/page_locations.json" --output "resources/data/page_locations.svg"
+
+cargo run --release -p ftmemsim-graphs -- --log-file-append --log-file "$LOG_FILE" \
+	page-migrations "resources/data/page_locations.json" --output "resources/data/page_migrations.svg"

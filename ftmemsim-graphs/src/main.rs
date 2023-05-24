@@ -10,7 +10,12 @@ use {
 	clap::Parser,
 	ftmemsim_util::logger,
 	itertools::Itertools,
-	plotlib::{page::Page, repr::Plot, style::PointStyle, view::ContinuousView},
+	plotlib::{
+		page::Page,
+		repr::{Histogram, HistogramBins, Plot},
+		style::{BoxStyle, PointStyle},
+		view::ContinuousView,
+	},
 };
 
 fn main() -> Result<(), anyhow::Error> {
@@ -48,7 +53,7 @@ fn main() -> Result<(), anyhow::Error> {
 				.locations
 				.iter()
 				.enumerate()
-				.map(|(idx, page_location)| (page_location.page_ptr, idx))
+				.map(|(idx, (page_ptr, _))| (page_ptr, idx))
 				.collect::<std::collections::HashMap<_, _>>();
 
 			// Then calculate the min/max time so we can normalize it to 0..1.
@@ -58,7 +63,7 @@ fn main() -> Result<(), anyhow::Error> {
 			let (min_time, max_time) = page_locations
 				.locations
 				.iter()
-				.map(|page_location| page_location.time)
+				.flat_map(|(_, page_locations)| page_locations.iter().map(|page_location| page_location.time))
 				.minmax()
 				.into_option()
 				.unwrap_or((0, 1));
@@ -67,17 +72,17 @@ fn main() -> Result<(), anyhow::Error> {
 			let points = page_locations
 				.locations
 				.iter()
-				.map(|page_location| {
-					(
-						(page_location.time - min_time) as f64 / (max_time - min_time) as f64,
-						*page_ptr_idxs
-							.get(&page_location.page_ptr)
-							.expect("Page ptr had no index") as f64,
-					)
+				.flat_map(|(page_ptr, page_locations)| {
+					page_locations.iter().map(|page_location| {
+						(
+							(page_location.time - min_time) as f64 / (max_time - min_time) as f64,
+							*page_ptr_idxs.get(page_ptr).expect("Page ptr had no index") as f64,
+						)
+					})
 				})
 				.collect::<Vec<_>>();
 
-			// Then build the plot and render it
+			// Finally build the plot and render it
 			let plot = Plot::new(points).point_style(PointStyle::new().size(point_size).colour(point_color));
 
 			let view = ContinuousView::new()
@@ -89,6 +94,50 @@ fn main() -> Result<(), anyhow::Error> {
 
 			Page::single(&view)
 				.dimensions(width, height)
+				.save(output_file)
+				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
+		},
+
+		// TODO: Allow customization for all of the parameters here?
+		args::SubCmd::PageMigrations {
+			input_file,
+			output_file,
+		} => {
+			// Parse the page locations
+			let page_locations = {
+				let page_locations_file = std::fs::File::open(input_file).context("Unable to open input file")?;
+				serde_json::from_reader::<_, ftmemsim_util::PageLocations>(page_locations_file)
+					.context("Unable to parse input file")?
+			};
+
+			let max_migrations = page_locations
+				.locations
+				.values()
+				.map(|page_locations| page_locations.len())
+				.max()
+				.unwrap_or(0);
+
+			// Build the data
+			let data = page_locations
+				.locations
+				.values()
+				.map(|page_locations| page_locations.len() as f64)
+				.collect::<Vec<_>>();
+
+			// Finally build the histogram and render it
+			let hist = Histogram::from_slice(&data, HistogramBins::Count(max_migrations - 1))
+				.style(&BoxStyle::new().fill("burlywood"));
+
+			let x_scale = 5;
+			let view = ContinuousView::new()
+				.add(hist)
+				.x_max_ticks((max_migrations + 1).min(20 * (x_scale as usize)))
+				.y_max_ticks(6)
+				.x_label("Migrations")
+				.y_label("Occurrences");
+
+			Page::single(&view)
+				.dimensions(640 * x_scale, 480)
 				.save(output_file)
 				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
 		},

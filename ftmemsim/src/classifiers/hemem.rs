@@ -210,14 +210,16 @@ impl HeMem {
 				.statistics
 				.page_locations()
 				.iter()
-				.flat_map(|(page_ptr, page_locations)| {
-					page_locations
+				.map(|(page_ptr, page_locations)| {
+					let locations = page_locations
 						.iter()
 						.map(move |page_location| ftmemsim_util::PageLocation {
-							page_ptr: page_ptr.to_u64(),
-							mem_idx:  page_location.mem_idx.to_usize(),
-							time:     page_location.time,
+							mem_idx: page_location.mem_idx.to_usize(),
+							time:    page_location.time,
 						})
+						.collect();
+
+					(page_ptr.to_u64(), locations)
 				})
 				.collect(),
 		}
