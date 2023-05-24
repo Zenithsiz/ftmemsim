@@ -20,4 +20,8 @@ pub struct Args {
 
 	/// Trace file
 	pub trace_file: PathBuf,
+
+	/// Config file
+	#[clap(long = "config")]
+	pub config_file: PathBuf,
 }

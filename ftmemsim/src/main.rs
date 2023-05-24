@@ -6,6 +6,7 @@
 // Modules
 mod args;
 mod classifiers;
+mod config;
 mod pin_trace;
 mod sim;
 
@@ -32,26 +33,36 @@ fn main() -> Result<(), anyhow::Error> {
 	let mut pin_trace_reader = PinTraceReader::from_reader(&mut pin_trace_file).context("Unable to parse pin trace")?;
 	tracing::trace!(target: "ftmemsim::parse_pin_trace", ?pin_trace_reader, "Parsed pin trace");
 
+	// Read the config file
+	// TODO: Allow not passing it and use a default?
+	let config = {
+		let config_file = fs::File::open(&args.config_file).context("Unable to open config file")?;
+		serde_json::from_reader::<_, self::config::Config>(config_file).context("Unable to parse config file")?
+	};
+
 	// Run the simulator
-	let mut sim = Simulator::new(0, Duration::from_secs_f64(1.0));
+	let mut sim = Simulator::new(
+		config.trace_skip,
+		Duration::from_secs_f64(config.debug_output_period_secs),
+	);
 	let mut hemem = hemem::HeMem::new(
 		hemem::Config {
-			read_hot_threshold:       8,
-			write_hot_threshold:      4,
-			global_cooling_threshold: 18,
+			read_hot_threshold:       config.hemem.read_hot_threshold,
+			write_hot_threshold:      config.hemem.write_hot_threshold,
+			global_cooling_threshold: config.hemem.global_cooling_threshold,
 		},
-		vec![
-			hemem::Memory::new("ram", 1000, hemem::memories::AccessLatencies {
-				read:  FemtoDuration::from_nanos_f64(1.5),
-				write: FemtoDuration::from_nanos_f64(1.0),
-				fault: FemtoDuration::from_nanos_f64(10.0),
-			}),
-			hemem::Memory::new("optane", 8000, hemem::memories::AccessLatencies {
-				read:  FemtoDuration::from_nanos_f64(5.0),
-				write: FemtoDuration::from_nanos_f64(4.0),
-				fault: FemtoDuration::from_nanos_f64(50.0),
-			}),
-		],
+		config
+			.hemem
+			.memories
+			.iter()
+			.map(|mem| {
+				hemem::Memory::new(&mem.name, mem.page_capacity, hemem::memories::AccessLatencies {
+					read:  FemtoDuration::from_nanos_f64(mem.read_latency_ns),
+					write: FemtoDuration::from_nanos_f64(mem.write_latency_ns),
+					fault: FemtoDuration::from_nanos_f64(mem.fault_latency_ns),
+				})
+			})
+			.collect(),
 	);
 
 	sim.run(&mut pin_trace_reader, &mut hemem)

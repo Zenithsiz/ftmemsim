@@ -12,18 +12,35 @@ PROFILE="dev"
 TRACE_FILE="resources/traces/bfs.g17.n100.t1.trace"
 #TRACE_FILE="resources/traces/bc.g18.n100.t1.trace"
 
+CONFIG="config.json"
+
 rm -rf "$LOG_FILE"
 
 echo "Simulating"
-cargo run --profile "$PROFILE" -p ftmemsim        -- --log-file-append --log-file "$LOG_FILE" \
+cargo run --profile "$PROFILE" -p ftmemsim -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	--config "$CONFIG" \
 	"$TRACE_FILE"
 
 echo "Creating graphs"
-cargo run --profile "$PROFILE" -p ftmemsim-graphs -- --log-file-append --log-file "$LOG_FILE" \
-	page-locations "resources/data/page_locations.json" --output "resources/data/page_locations.svg"
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	page-locations \
+	"resources/data/page_locations.json" \
+	--output "resources/data/page_locations.svg"
 
-cargo run --profile "$PROFILE" -p ftmemsim-graphs -- --log-file-append --log-file "$LOG_FILE" \
-	page-migrations "resources/data/page_locations.json" --output "resources/data/page_migrations.svg"
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	page-migrations \
+	"resources/data/page_locations.json" \
+	--output "resources/data/page_migrations.svg"
 
-cargo run --profile "$PROFILE" -p ftmemsim-graphs -- --log-file-append --log-file "$LOG_FILE" \
-	page-temperature "resources/data/page_accesses.json" --output "resources/data/page_temperature.svg"
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	page-temperature \
+	"resources/data/page_accesses.json" \
+	--output "resources/data/page_temperature.svg"
