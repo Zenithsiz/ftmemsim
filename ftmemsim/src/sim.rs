@@ -21,18 +21,18 @@ pub struct Simulator {
 	/// while a value of 1 implies it receives every other record as a trace.
 	trace_skip: usize,
 
-	/// Debug output frequency
+	/// Debug output period
 	///
 	/// Interval in which to output debug output for the classifier
-	debug_output_freq: Duration,
+	debug_output_period: Duration,
 }
 
 impl Simulator {
 	/// Creates a new simulator
-	pub fn new(trace_skip: usize, debug_output_freq: Duration) -> Self {
+	pub fn new(trace_skip: usize, debug_output_period: Duration) -> Self {
 		Self {
 			trace_skip,
-			debug_output_freq,
+			debug_output_period,
 		}
 	}
 
@@ -43,7 +43,7 @@ impl Simulator {
 		classifier: &mut C,
 	) -> Result<(), anyhow::Error> {
 		// Note: We start in the past so that we output right away at the start
-		let mut last_debug_time = Instant::now() - self.debug_output_freq;
+		let mut last_debug_time = Instant::now() - self.debug_output_period;
 
 		// Create the record iterator
 		let total_records = pin_trace_reader.records_remaining();
@@ -61,7 +61,7 @@ impl Simulator {
 
 			// Then show debug output, if it's been long enough
 			let cur_time = Instant::now();
-			if cur_time.duration_since(last_debug_time) >= self.debug_output_freq {
+			if cur_time.duration_since(last_debug_time) >= self.debug_output_period {
 				let records_processed_percentage = 100.0 * (record_idx as f64 / total_records as f64);
 				tracing::info!(
 					"[{records_processed_percentage:.2}%] Debug: {}",
