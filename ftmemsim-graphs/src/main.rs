@@ -66,11 +66,21 @@ fn main() -> Result<(), anyhow::Error> {
 				x: f64,
 				y: usize,
 			}
-			let points = page_locations
+			let points_alloc = page_locations
 				.locations
 				.iter()
 				.flat_map(|(page_ptr, page_locations)| {
-					page_locations.iter().map(|page_location| Point {
+					page_locations.first().map(|page_location| Point {
+						x: (page_location.time - min_time) as f64 / (max_time - min_time) as f64,
+						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
+					})
+				})
+				.collect::<Vec<_>>();
+			let points_migration = page_locations
+				.locations
+				.iter()
+				.flat_map(|(page_ptr, page_locations)| {
+					page_locations.iter().skip(1).map(|page_location| Point {
 						x: (page_location.time - min_time) as f64 / (max_time - min_time) as f64,
 						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
 					})
@@ -80,12 +90,22 @@ fn main() -> Result<(), anyhow::Error> {
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
 			fg.axes2d()
-				.points(points.iter().map(|p| p.x), points.iter().map(|p| p.y), &[
-					PlotOption::Caption("Page locations"),
-					PlotOption::Color("black"),
+				.points(points_alloc.iter().map(|p| p.x), points_alloc.iter().map(|p| p.y), &[
+					PlotOption::Caption("Page locations (Allocation)"),
+					PlotOption::Color("red"),
 					PlotOption::PointSymbol('O'),
 					PlotOption::PointSize(0.2),
 				])
+				.points(
+					points_migration.iter().map(|p| p.x),
+					points_migration.iter().map(|p| p.y),
+					&[
+						PlotOption::Caption("Page locations (Migrations)"),
+						PlotOption::Color("black"),
+						PlotOption::PointSymbol('O'),
+						PlotOption::PointSize(0.2),
+					],
+				)
 				.set_x_label("Time (normalized)", &[])
 				.set_y_label("Page (indexed)", &[])
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0));
@@ -103,10 +123,11 @@ fn main() -> Result<(), anyhow::Error> {
 			};
 
 			// Build the data
+			// Note: `-1` since the initial location doesn't count as a migration
 			let data = page_locations
 				.locations
 				.values()
-				.map(|page_locations| page_locations.len())
+				.map(|page_locations| page_locations.len() - 1)
 				.counts()
 				.into_iter()
 				.collect::<BTreeMap<_, _>>();
@@ -120,6 +141,7 @@ fn main() -> Result<(), anyhow::Error> {
 				])
 				.set_y_log(Some(10.0))
 				.set_x_ticks(Some((AutoOption::Fix(1.0), 0)), &[], &[])
+				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
 				.set_x_label("Migrations", &[])
 				.set_y_label("Count", &[]);
 
