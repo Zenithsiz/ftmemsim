@@ -11,7 +11,7 @@ pub mod logger;
 pub use duration::FemtoDuration;
 
 // Imports
-use std::{cell::RefCell, collections::HashMap, fmt, io};
+use std::{cell::RefCell, collections::BTreeMap, fmt, io};
 
 /// Extension trait for `R: io::Read` types to read a byte array
 #[extend::ext(name = ReadByteArray)]
@@ -78,7 +78,11 @@ pub enum PageAccessKind {
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PageLocations {
-	pub locations: HashMap<u64, Vec<PageLocation>>,
+	// Note: We use a `BTreeMap` to ensure the order of the locations
+	//       is always the same, as well as to sort it by page.
+	// TODO: Just use `HashMap` here and instead just sort the data when
+	//       creating the graphs?
+	pub locations: BTreeMap<u64, Vec<PageLocation>>,
 }
 
 /// Page location over time
