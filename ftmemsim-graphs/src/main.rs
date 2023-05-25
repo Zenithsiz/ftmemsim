@@ -3,8 +3,6 @@
 // Features
 #![feature(lint_reasons)]
 
-use plotlib::style::{LineJoin, LineStyle};
-
 // Modules
 mod args;
 
@@ -14,13 +12,9 @@ use {
 	args::Args,
 	clap::Parser,
 	ftmemsim_util::logger,
+	gnuplot::{AxesCommon, PlotOption},
 	itertools::Itertools,
-	plotlib::{
-		page::Page,
-		repr::{Histogram, HistogramBins, Plot},
-		style::{BoxStyle, PointStyle},
-		view::ContinuousView,
-	},
+	std::{collections::BTreeMap, path::Path},
 };
 
 fn main() -> Result<(), anyhow::Error> {
@@ -33,16 +27,7 @@ fn main() -> Result<(), anyhow::Error> {
 
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageLocations {
-			input_file,
-			output_file,
-			point_size,
-			width,
-			height,
-			x_tick_marks,
-			y_tick_marks,
-			point_color,
-		} => {
+		args::SubCmd::PageLocations { input_file, output } => {
 			// Parse the page locations
 			let page_locations = {
 				let page_locations_file = std::fs::File::open(input_file).context("Unable to open input file")?;
@@ -74,40 +59,36 @@ fn main() -> Result<(), anyhow::Error> {
 				.unwrap_or((0, 1));
 
 			// And calculate the points to display
-			let points = page_locations
+			let (points_x, points_y) = page_locations
 				.locations
 				.iter()
 				.flat_map(|(page_ptr, page_locations)| {
 					page_locations.iter().map(|page_location| {
 						(
 							(page_location.time - min_time) as f64 / (max_time - min_time) as f64,
-							*page_ptr_idxs.get(page_ptr).expect("Page ptr had no index") as f64,
+							*page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
 						)
 					})
 				})
-				.collect::<Vec<_>>();
+				.unzip::<_, _, Vec<_>, Vec<_>>();
 
-			// Finally build the plot and render it
-			let plot = Plot::new(points).point_style(PointStyle::new().size(point_size).colour(point_color));
+			// Finally create and save the plot
+			let mut fg = gnuplot::Figure::new();
+			fg.axes2d()
+				.points(&points_x, &points_y, &[
+					PlotOption::Caption("Page locations"),
+					PlotOption::Color("black"),
+					PlotOption::PointSymbol('.'),
+					PlotOption::PointSize(1.0),
+				])
+				.set_x_label("Time (normalized)", &[])
+				.set_y_label("Page (indexed)", &[]);
 
-			let view = ContinuousView::new()
-				.add(plot)
-				.x_max_ticks(x_tick_marks)
-				.y_max_ticks(y_tick_marks)
-				.x_label("Time")
-				.y_label("Page (Indexed)");
-
-			Page::single(&view)
-				.dimensions(width, height)
-				.save(output_file)
-				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
+			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
 
 		// TODO: Allow customization for all of the parameters here?
-		args::SubCmd::PageMigrations {
-			input_file,
-			output_file,
-		} => {
+		args::SubCmd::PageMigrations { input_file, output } => {
 			// Parse the page locations
 			let page_locations = {
 				let page_locations_file = std::fs::File::open(input_file).context("Unable to open input file")?;
@@ -115,40 +96,30 @@ fn main() -> Result<(), anyhow::Error> {
 					.context("Unable to parse input file")?
 			};
 
-			let max_migrations = page_locations
-				.locations
-				.values()
-				.map(|page_locations| page_locations.len())
-				.max()
-				.unwrap_or(0);
-
 			// Build the data
 			let data = page_locations
 				.locations
 				.values()
-				.map(|page_locations| page_locations.len() as f64)
-				.collect::<Vec<_>>();
+				.map(|page_locations| page_locations.len())
+				.counts()
+				.into_iter()
+				.collect::<BTreeMap<_, _>>();
 
-			// Finally build the histogram and render it
-			let hist = Histogram::from_slice(&data, HistogramBins::Count(20.min(max_migrations) - 1))
-				.style(&BoxStyle::new().fill("burlywood"));
+			// Finally create and save the plot
+			let mut fg = gnuplot::Figure::new();
+			fg.axes2d()
+				.boxes_set_width(data.keys(), data.values(), (0..data.len()).map(|_| 0.8), &[
+					PlotOption::Caption("Migration count"),
+					PlotOption::Color("black"),
+				])
+				.set_y_log(Some(10.0))
+				.set_x_ticks(Some((gnuplot::AutoOption::Fix(1.0), 0)), &[], &[])
+				.set_x_label("Migrations", &[])
+				.set_y_label("Count", &[]);
 
-			let view = ContinuousView::new()
-				.add(hist)
-				.x_max_ticks(20.min(max_migrations))
-				.y_max_ticks(6)
-				.x_label("Migrations")
-				.y_label("Occurrences");
-
-			Page::single(&view)
-				.dimensions(640, 480)
-				.save(output_file)
-				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
+			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
-		args::SubCmd::PageTemperature {
-			input_file,
-			output_file,
-		} => {
+		args::SubCmd::PageTemperature { input_file, output } => {
 			// Parse the page accesses
 			let page_accesses = {
 				let page_accesses_file = std::fs::File::open(input_file).context("Unable to open input file")?;
@@ -165,7 +136,7 @@ fn main() -> Result<(), anyhow::Error> {
 				.unwrap_or((0, 1));
 
 			let mut temp_cur_average = 0.0;
-			let temp_points = page_accesses
+			let (points_x, points_y) = page_accesses
 				.accesses
 				.iter()
 				.enumerate()
@@ -176,24 +147,50 @@ fn main() -> Result<(), anyhow::Error> {
 						temp_cur_average / (idx as f64 + 1.0),
 					)
 				})
-				.collect::<Vec<_>>();
+				.unzip::<_, _, Vec<_>, Vec<_>>();
 
-			// Finally build the plot and render it
-			let temp_plot = Plot::new(temp_points)
-				.line_style(LineStyle::new().width(1.0).colour("#000000").linejoin(LineJoin::Round));
+			// Finally create and save the plot
+			let mut fg = gnuplot::Figure::new();
+			fg.axes2d()
+				.lines(&points_x, &points_y, &[
+					PlotOption::Caption("Page locations"),
+					PlotOption::Color("black"),
+					PlotOption::PointSymbol('.'),
+					PlotOption::PointSize(1.0),
+				])
+				.set_x_label("Time (normalized)", &[])
+				.set_y_label("Page (indexed)", &[]);
 
-			let view = ContinuousView::new()
-				.add(temp_plot)
-				.x_max_ticks(6)
-				.y_max_ticks(6)
-				.x_label("Time")
-				.y_label("Temperature");
-
-			Page::single(&view)
-				.dimensions(640, 480)
-				.save(output_file)
-				.map_err(|err| anyhow::anyhow!("Unable to save output file: {err:?}"))?;
+			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
+	}
+
+	Ok(())
+}
+
+/// Saves the plot `fg` to `output_file`, depending on it's extension
+fn save_plot(output_file: &Path, fg: &mut gnuplot::Figure, width_px: u32, height_px: u32) -> Result<(), anyhow::Error> {
+	match output_file
+		.extension()
+		.context("Output file had no extension")?
+		.to_str()
+		.context("Output file extension was non-utf8")?
+		.to_ascii_lowercase()
+		.as_str()
+	{
+		"png" => fg
+			.save_to_png(output_file, width_px, height_px)
+			.context("Unable to save output file as png")?,
+
+		"svg" => fg
+			.save_to_svg(output_file, width_px, height_px)
+			.context("Unable to save output file as svg")?,
+
+		"html" => fg
+			.save_to_canvas(output_file, width_px, height_px)
+			.context("Unable to save output file as html canvas")?,
+
+		ext => anyhow::bail!("Unknown extension: {ext:?}"),
 	}
 
 	Ok(())

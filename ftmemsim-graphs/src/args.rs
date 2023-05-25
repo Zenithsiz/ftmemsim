@@ -36,32 +36,8 @@ pub enum SubCmd {
 		input_file: PathBuf,
 
 		/// Output
-		#[clap(short = 'o', long = "output")]
-		output_file: PathBuf,
-
-		/// Point size
-		#[clap(long = "point-size", default_value_t = 1.0)]
-		point_size: f32,
-
-		/// Width
-		#[clap(long = "width", default_value_t = 640)]
-		width: u32,
-
-		/// Height
-		#[clap(long = "height", default_value_t = 480)]
-		height: u32,
-
-		/// Tick marks for x axis
-		#[clap(long = "x-tick-marks", default_value_t = 6)]
-		x_tick_marks: usize,
-
-		/// Tick marks for y axis
-		#[clap(long = "y-tick-marks", default_value_t = 6)]
-		y_tick_marks: usize,
-
-		/// Point color
-		#[clap(long = "point-color", default_value_t = { "#000000".to_owned() })]
-		point_color: String,
+		#[clap(flatten)]
+		output: ArgsOutputFile,
 	},
 
 	/// Creates a histogram of page migrations
@@ -73,8 +49,8 @@ pub enum SubCmd {
 		input_file: PathBuf,
 
 		/// Output
-		#[clap(short = 'o', long = "output")]
-		output_file: PathBuf,
+		#[clap(flatten)]
+		output: ArgsOutputFile,
 	},
 
 	/// Page temperature
@@ -86,7 +62,23 @@ pub enum SubCmd {
 		input_file: PathBuf,
 
 		/// Output
-		#[clap(short = 'o', long = "output")]
-		output_file: PathBuf,
+		#[clap(flatten)]
+		output: ArgsOutputFile,
 	},
+}
+
+/// Output file
+#[derive(Debug, clap::Args)]
+pub struct ArgsOutputFile {
+	/// Output file
+	#[clap(short = 'o', long = "output")]
+	pub file: PathBuf,
+
+	/// Output file width
+	#[clap(long = "output-width", default_value_t = 640)]
+	pub width: u32,
+
+	/// Output file height
+	#[clap(long = "output-height", default_value_t = 480)]
+	pub height: u32,
 }

@@ -7,8 +7,8 @@ edition = "2021"
 
 clap = { workspace = true }
 tracing = { workspace = true }
-plotlib = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 itertools = { workspace = true }
+gnuplot = { workspace = true }
 ftmemsim-util = { workspace = true }
