@@ -211,19 +211,20 @@ impl HeMem {
 				.accesses()
 				.iter()
 				.map(|page_access| ftmemsim_util::PageAccess {
-					page_ptr:  page_access.page_ptr.to_u64(),
-					time:      page_access.time,
-					mem_idx:   match page_access.mem {
+					page_ptr:       page_access.page_ptr.to_u64(),
+					time:           page_access.time,
+					mem_idx:        match page_access.mem {
 						statistics::AccessMem::Mapped(mem_idx) | statistics::AccessMem::Resided(mem_idx) =>
 							mem_idx.to_usize(),
 					},
-					faulted:   matches!(page_access.mem, statistics::AccessMem::Mapped(_)),
-					kind:      match page_access.kind {
+					faulted:        matches!(page_access.mem, statistics::AccessMem::Mapped(_)),
+					kind:           match page_access.kind {
 						statistics::AccessKind::Read => ftmemsim_util::PageAccessKind::Read,
 						statistics::AccessKind::Write => ftmemsim_util::PageAccessKind::Write,
 					},
-					prev_temp: page_access.prev_temperature,
-					cur_temp:  page_access.cur_temperature,
+					prev_temp:      page_access.prev_temperature,
+					cur_temp:       page_access.cur_temperature,
+					caused_cooling: page_access.caused_cooling,
 				})
 				.collect(),
 		}
@@ -282,7 +283,8 @@ impl sim::Classifier for HeMem {
 		};
 
 		// If the page is over the threshold, cool all pages
-		if page.over_threshold(self.config.global_cooling_threshold) {
+		let caused_cooling = page.over_threshold(self.config.global_cooling_threshold);
+		if caused_cooling {
 			self.page_table.cool_all_pages();
 		}
 
@@ -322,6 +324,7 @@ impl sim::Classifier for HeMem {
 			},
 			prev_temperature: page_prev_temperature,
 			cur_temperature: page_cur_temperature,
+			caused_cooling,
 		});
 
 		Ok(())

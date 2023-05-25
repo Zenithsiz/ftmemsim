@@ -67,6 +67,9 @@ pub struct Access {
 
 	/// Page current temperature
 	pub cur_temperature: usize,
+
+	/// Caused a global cooling?
+	pub caused_cooling: bool,
 }
 
 /// Access kind for [`Access`]

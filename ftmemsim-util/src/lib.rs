@@ -57,13 +57,14 @@ pub struct PageAccesses {
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PageAccess {
-	pub page_ptr:  u64,
-	pub time:      u64,
-	pub mem_idx:   usize,
-	pub faulted:   bool,
-	pub kind:      PageAccessKind,
-	pub prev_temp: usize,
-	pub cur_temp:  usize,
+	pub page_ptr:       u64,
+	pub time:           u64,
+	pub mem_idx:        usize,
+	pub faulted:        bool,
+	pub kind:           PageAccessKind,
+	pub prev_temp:      usize,
+	pub cur_temp:       usize,
+	pub caused_cooling: bool,
 }
 
 /// Page access kind
