@@ -81,8 +81,8 @@ fn main() -> Result<(), anyhow::Error> {
 				.points(&points_x, &points_y, &[
 					PlotOption::Caption("Page locations"),
 					PlotOption::Color("black"),
-					PlotOption::PointSymbol('.'),
-					PlotOption::PointSize(1.0),
+					PlotOption::PointSymbol('O'),
+					PlotOption::PointSize(0.2),
 				])
 				.set_x_label("Time (normalized)", &[])
 				.set_y_label("Page (indexed)", &[]);
