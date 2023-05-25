@@ -62,23 +62,25 @@ fn main() -> Result<(), anyhow::Error> {
 				.unwrap_or((0, 1));
 
 			// And calculate the points to display
-			let (points_x, points_y) = page_locations
+			struct Point {
+				x: f64,
+				y: usize,
+			}
+			let points = page_locations
 				.locations
 				.iter()
 				.flat_map(|(page_ptr, page_locations)| {
-					page_locations.iter().map(|page_location| {
-						(
-							(page_location.time - min_time) as f64 / (max_time - min_time) as f64,
-							*page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
-						)
+					page_locations.iter().map(|page_location| Point {
+						x: (page_location.time - min_time) as f64 / (max_time - min_time) as f64,
+						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
 					})
 				})
-				.unzip::<_, _, Vec<_>, Vec<_>>();
+				.collect::<Vec<_>>();
 
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
 			fg.axes2d()
-				.points(&points_x, &points_y, &[
+				.points(points.iter().map(|p| p.x), points.iter().map(|p| p.y), &[
 					PlotOption::Caption("Page locations"),
 					PlotOption::Color("black"),
 					PlotOption::PointSymbol('O'),
