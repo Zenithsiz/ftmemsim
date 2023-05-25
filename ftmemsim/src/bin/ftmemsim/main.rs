@@ -5,17 +5,14 @@
 
 // Modules
 mod args;
-mod classifiers;
 mod config;
-mod pin_trace;
-mod sim;
 
 // Imports
 use {
-	self::{args::Args, pin_trace::PinTraceReader},
-	crate::{classifiers::hemem, sim::Simulator},
+	self::args::Args,
 	anyhow::Context,
 	clap::Parser,
+	ftmemsim::{classifiers::hemem, PinTraceReader, Simulator},
 	ftmemsim_util::{logger, FemtoDuration},
 	std::{fs, time::Duration},
 };

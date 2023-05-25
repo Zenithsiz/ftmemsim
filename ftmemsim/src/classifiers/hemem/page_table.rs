@@ -81,6 +81,12 @@ impl PageTable {
 	}
 }
 
+impl Default for PageTable {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 /// Page
 #[derive(Clone, Copy, Debug)]
 pub struct Page {

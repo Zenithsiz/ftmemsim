@@ -46,6 +46,12 @@ impl Statistics {
 	}
 }
 
+impl Default for Statistics {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 
 /// An access to a page
 #[derive(Clone, Copy, Debug)]
