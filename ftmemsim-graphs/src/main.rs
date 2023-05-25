@@ -28,21 +28,22 @@ fn main() -> Result<(), anyhow::Error> {
 	// Initialize logging
 	logger::init(args.log_file.as_deref(), args.log_file_append);
 
+	// Parse the input file
+	let data = {
+		let data_file = std::fs::File::open(args.input_file).context("Unable to open input file")?;
+		serde_json::from_reader::<_, ftmemsim::data::Data>(data_file).context("Unable to parse input file")?
+	};
+
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageLocations { input_file, output } => {
-			// Parse the page locations
-			let page_locations = {
-				let page_locations_file = std::fs::File::open(input_file).context("Unable to open input file")?;
-				serde_json::from_reader::<_, ftmemsim_util::PageLocations>(page_locations_file)
-					.context("Unable to parse input file")?
-			};
-
+		args::SubCmd::PageLocations { output } => {
 			// Then index the page pointers.
 			// Note: We do this because the page pointers are very far away, value-wise, which
 			//       causes them to display far away in the graph. Since the actual values of the
 			//       pages don't matter to us, we just index them by order of appearance.
-			let page_ptr_idxs = page_locations
+			let page_ptr_idxs = data
+				.hemem
+				.page_locations
 				.locations
 				.iter()
 				.enumerate()
@@ -53,7 +54,9 @@ fn main() -> Result<(), anyhow::Error> {
 			// Note: We do this because the time values themselves don't matter, only
 			//       the relative time.
 			// TODO: Better defaults when empty?
-			let (min_time, max_time) = page_locations
+			let (min_time, max_time) = data
+				.hemem
+				.page_locations
 				.locations
 				.iter()
 				.flat_map(|(_, page_locations)| page_locations.iter().map(|page_location| page_location.time))
@@ -66,7 +69,9 @@ fn main() -> Result<(), anyhow::Error> {
 				x: f64,
 				y: usize,
 			}
-			let points_alloc = page_locations
+			let points_alloc = data
+				.hemem
+				.page_locations
 				.locations
 				.iter()
 				.flat_map(|(page_ptr, page_locations)| {
@@ -76,7 +81,9 @@ fn main() -> Result<(), anyhow::Error> {
 					})
 				})
 				.collect::<Vec<_>>();
-			let points_migration = page_locations
+			let points_migration = data
+				.hemem
+				.page_locations
 				.locations
 				.iter()
 				.flat_map(|(page_ptr, page_locations)| {
@@ -114,17 +121,12 @@ fn main() -> Result<(), anyhow::Error> {
 		},
 
 		// TODO: Allow customization for all of the parameters here?
-		args::SubCmd::PageMigrations { input_file, output } => {
-			// Parse the page locations
-			let page_locations = {
-				let page_locations_file = std::fs::File::open(input_file).context("Unable to open input file")?;
-				serde_json::from_reader::<_, ftmemsim_util::PageLocations>(page_locations_file)
-					.context("Unable to parse input file")?
-			};
-
+		args::SubCmd::PageMigrations { output } => {
 			// Build the data
 			// Note: `-1` since the initial location doesn't count as a migration
-			let data = page_locations
+			let data = data
+				.hemem
+				.page_locations
 				.locations
 				.values()
 				.map(|page_locations| page_locations.len() - 1)
@@ -147,15 +149,10 @@ fn main() -> Result<(), anyhow::Error> {
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
-		args::SubCmd::PageTemperature { input_file, output } => {
-			// Parse the page accesses
-			let page_accesses = {
-				let page_accesses_file = std::fs::File::open(input_file).context("Unable to open input file")?;
-				serde_json::from_reader::<_, ftmemsim_util::PageAccesses>(page_accesses_file)
-					.context("Unable to parse input file")?
-			};
-
-			let (min_time, max_time) = page_accesses
+		args::SubCmd::PageTemperature { output } => {
+			let (min_time, max_time) = data
+				.hemem
+				.page_accesses
 				.accesses
 				.iter()
 				.map(|page_access| page_access.time)
@@ -171,7 +168,9 @@ fn main() -> Result<(), anyhow::Error> {
 				global_cooled: bool,
 			}
 			let mut cur_temps = HashMap::new();
-			let points = page_accesses
+			let points = data
+				.hemem
+				.page_accesses
 				.accesses
 				.iter()
 				.map(|page_access| {

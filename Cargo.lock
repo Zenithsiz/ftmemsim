@@ -222,6 +222,7 @@ dependencies = [
  "anyhow",
  "average",
  "clap",
+ "ftmemsim",
  "ftmemsim-util",
  "gnuplot",
  "itertools",

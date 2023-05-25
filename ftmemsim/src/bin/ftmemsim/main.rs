@@ -12,7 +12,7 @@ use {
 	self::args::Args,
 	anyhow::Context,
 	clap::Parser,
-	ftmemsim::{classifiers::hemem, PinTraceReader, Simulator},
+	ftmemsim::{classifiers::hemem, data, PinTraceReader, Simulator},
 	ftmemsim_util::{logger, FemtoDuration},
 	std::{fs, time::Duration},
 };
@@ -65,20 +65,54 @@ fn main() -> Result<(), anyhow::Error> {
 	sim.run(&mut pin_trace_reader, &mut hemem)
 		.context("Unable to run simulator")?;
 
-	// TODO: Make locations configurable
-	{
-		let page_locations_file =
-			fs::File::create("resources/data/page_locations.json").context("Unable to create page locations file")?;
-		let page_locations = hemem.page_locations();
-		serde_json::to_writer(page_locations_file, &page_locations)
-			.context("Unable to write to page locations file")?;
-	}
+	if let Some(output_path) = &args.output_file {
+		let hemem_statistics = hemem.statistics();
+		let data = data::Data {
+			hemem: data::HeMemData {
+				page_accesses:  data::PageAccesses {
+					accesses: hemem_statistics
+						.accesses()
+						.iter()
+						.map(|page_access| data::PageAccess {
+							page_ptr:       page_access.page_ptr.to_u64(),
+							time:           page_access.time,
+							mem_idx:        match page_access.mem {
+								hemem::statistics::AccessMem::Mapped(mem_idx) |
+								hemem::statistics::AccessMem::Resided(mem_idx) => mem_idx.to_usize(),
+							},
+							faulted:        matches!(page_access.mem, hemem::statistics::AccessMem::Mapped(_)),
+							kind:           match page_access.kind {
+								hemem::statistics::AccessKind::Read => data::PageAccessKind::Read,
+								hemem::statistics::AccessKind::Write => data::PageAccessKind::Write,
+							},
+							prev_temp:      page_access.prev_temperature,
+							cur_temp:       page_access.cur_temperature,
+							caused_cooling: page_access.caused_cooling,
+						})
+						.collect(),
+				},
+				page_locations: data::PageLocations {
+					locations: hemem_statistics
+						.page_locations()
+						.iter()
+						.map(|(page_ptr, page_locations)| {
+							let locations = page_locations
+								.iter()
+								.map(move |page_location| data::PageLocation {
+									mem_idx: page_location.mem_idx.to_usize(),
+									time:    page_location.time,
+								})
+								.collect();
 
-	{
-		let page_accesses_file =
-			fs::File::create("resources/data/page_accesses.json").context("Unable to create page accesses file")?;
-		let page_accesses = hemem.page_accesses();
-		serde_json::to_writer(page_accesses_file, &page_accesses).context("Unable to write to page accesses file")?;
+							(page_ptr.to_u64(), locations)
+						})
+						.collect(),
+				},
+			},
+		};
+
+		let output_file = fs::File::create(output_path).context("Unable to create output file")?;
+		serde_json::to_writer(output_file, &data).context("Unable to write to output file")?;
 	}
 
 	Ok(())

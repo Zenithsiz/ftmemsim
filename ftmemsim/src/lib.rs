@@ -5,6 +5,7 @@
 
 // Modules
 pub mod classifiers;
+pub mod data;
 pub mod pin_trace;
 pub mod sim;
 

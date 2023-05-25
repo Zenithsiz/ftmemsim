@@ -203,53 +203,9 @@ impl HeMem {
 			.context("Unable to migrate page to faster memory")
 	}
 
-	/// Returns the page accesses so far
-	pub fn page_accesses(&self) -> ftmemsim_util::PageAccesses {
-		ftmemsim_util::PageAccesses {
-			accesses: self
-				.statistics
-				.accesses()
-				.iter()
-				.map(|page_access| ftmemsim_util::PageAccess {
-					page_ptr:       page_access.page_ptr.to_u64(),
-					time:           page_access.time,
-					mem_idx:        match page_access.mem {
-						statistics::AccessMem::Mapped(mem_idx) | statistics::AccessMem::Resided(mem_idx) =>
-							mem_idx.to_usize(),
-					},
-					faulted:        matches!(page_access.mem, statistics::AccessMem::Mapped(_)),
-					kind:           match page_access.kind {
-						statistics::AccessKind::Read => ftmemsim_util::PageAccessKind::Read,
-						statistics::AccessKind::Write => ftmemsim_util::PageAccessKind::Write,
-					},
-					prev_temp:      page_access.prev_temperature,
-					cur_temp:       page_access.cur_temperature,
-					caused_cooling: page_access.caused_cooling,
-				})
-				.collect(),
-		}
-	}
-
-	/// Returns the page locations so far
-	pub fn page_locations(&self) -> ftmemsim_util::PageLocations {
-		ftmemsim_util::PageLocations {
-			locations: self
-				.statistics
-				.page_locations()
-				.iter()
-				.map(|(page_ptr, page_locations)| {
-					let locations = page_locations
-						.iter()
-						.map(move |page_location| ftmemsim_util::PageLocation {
-							mem_idx: page_location.mem_idx.to_usize(),
-							time:    page_location.time,
-						})
-						.collect();
-
-					(page_ptr.to_u64(), locations)
-				})
-				.collect(),
-		}
+	/// Returns the statistics
+	pub fn statistics(&self) -> &Statistics {
+		&self.statistics
 	}
 }
 

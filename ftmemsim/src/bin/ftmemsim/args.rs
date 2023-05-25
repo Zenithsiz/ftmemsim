@@ -24,4 +24,8 @@ pub struct Args {
 	/// Config file
 	#[clap(long = "config")]
 	pub config_file: PathBuf,
+
+	/// Output file
+	#[clap(long = "output")]
+	pub output_file: Option<PathBuf>,
 }
