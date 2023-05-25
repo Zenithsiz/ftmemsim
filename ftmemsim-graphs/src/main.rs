@@ -14,7 +14,10 @@ use {
 	ftmemsim_util::logger,
 	gnuplot::{AxesCommon, PlotOption},
 	itertools::Itertools,
-	std::{collections::BTreeMap, path::Path},
+	std::{
+		collections::{BTreeMap, HashMap},
+		path::Path,
+	},
 };
 
 fn main() -> Result<(), anyhow::Error> {
@@ -135,16 +138,20 @@ fn main() -> Result<(), anyhow::Error> {
 				.into_option()
 				.unwrap_or((0, 1));
 
-			let mut temp_cur_average = 0.0;
+			let mut cur_temps = HashMap::new();
 			let (points_x, points_y) = page_accesses
 				.accesses
 				.iter()
-				.enumerate()
-				.map(|(idx, page_access)| {
-					temp_cur_average += page_access.cur_temp as f64;
+				.map(|page_access| {
+					*cur_temps.entry(page_access.page_ptr).or_insert(0) = page_access.cur_temp;
+
 					(
 						(page_access.time - min_time) as f64 / (max_time - min_time) as f64,
-						temp_cur_average / (idx as f64 + 1.0),
+						cur_temps
+							.values()
+							.map(|&temp| temp as f64)
+							.collect::<average::Mean>()
+							.mean(),
 					)
 				})
 				.unzip::<_, _, Vec<_>, Vec<_>>();

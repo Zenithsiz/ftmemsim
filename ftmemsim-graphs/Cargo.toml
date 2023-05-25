@@ -11,4 +11,5 @@ anyhow = { workspace = true }
 serde_json = { workspace = true }
 itertools = { workspace = true }
 gnuplot = { workspace = true }
+average = { workspace = true }
 ftmemsim-util = { workspace = true }

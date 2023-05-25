@@ -220,6 +220,7 @@ name = "ftmemsim-graphs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "average",
  "clap",
  "ftmemsim-util",
  "gnuplot",
