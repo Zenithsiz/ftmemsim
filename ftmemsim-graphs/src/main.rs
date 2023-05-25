@@ -143,6 +143,13 @@ fn main() -> Result<(), anyhow::Error> {
 				])
 				.set_y_log(Some(10.0))
 				.set_x_ticks(Some((AutoOption::Fix(1.0), 0)), &[], &[])
+				.set_x_range(
+					AutoOption::Fix(-0.5),
+					AutoOption::Fix(
+						data.last_key_value()
+							.map_or(0.5, |(&migrations, _)| migrations as f64 + 0.5),
+					),
+				)
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
 				.set_x_label("Migrations", &[])
 				.set_y_label("Count", &[]);
