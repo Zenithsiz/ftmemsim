@@ -12,7 +12,7 @@ use {
 	args::Args,
 	clap::Parser,
 	ftmemsim_util::logger,
-	gnuplot::{AxesCommon, PlotOption},
+	gnuplot::{AutoOption, AxesCommon, DashType, FillRegionType, PlotOption},
 	itertools::Itertools,
 	std::{
 		collections::{BTreeMap, HashMap},
@@ -85,7 +85,8 @@ fn main() -> Result<(), anyhow::Error> {
 					PlotOption::PointSize(0.2),
 				])
 				.set_x_label("Time (normalized)", &[])
-				.set_y_label("Page (indexed)", &[]);
+				.set_y_label("Page (indexed)", &[])
+				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0));
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
@@ -116,7 +117,7 @@ fn main() -> Result<(), anyhow::Error> {
 					PlotOption::Color("black"),
 				])
 				.set_y_log(Some(10.0))
-				.set_x_ticks(Some((gnuplot::AutoOption::Fix(1.0), 0)), &[], &[])
+				.set_x_ticks(Some((AutoOption::Fix(1.0), 0)), &[], &[])
 				.set_x_label("Migrations", &[])
 				.set_y_label("Count", &[]);
 
@@ -138,35 +139,78 @@ fn main() -> Result<(), anyhow::Error> {
 				.into_option()
 				.unwrap_or((0, 1));
 
+			// Get all the points
+			struct Point {
+				x:             f64,
+				y_avg:         f64,
+				y_err:         f64,
+				global_cooled: bool,
+			}
 			let mut cur_temps = HashMap::new();
-			let (points_x, points_y) = page_accesses
+			let points = page_accesses
 				.accesses
 				.iter()
 				.map(|page_access| {
-					*cur_temps.entry(page_access.page_ptr).or_insert(0) = page_access.cur_temp;
+					// Update the temperatures
+					// TODO: Optimize global cooling?
+					*cur_temps.entry(page_access.page_ptr).or_insert(0) = page_access.prev_temp;
+					if page_access.caused_cooling {
+						for temp in cur_temps.values_mut() {
+							*temp /= 2;
+						}
+					}
 
-					(
-						(page_access.time - min_time) as f64 / (max_time - min_time) as f64,
-						cur_temps
-							.values()
-							.map(|&temp| temp as f64)
-							.collect::<average::Mean>()
-							.mean(),
-					)
+					// TODO: Optimize this with a moving average?
+					let average_temp = &cur_temps
+						.values()
+						.map(|&temp| temp as f64)
+						.collect::<average::Variance>();
+					Point {
+						x:             (page_access.time - min_time) as f64 / (max_time - min_time) as f64,
+						y_avg:         average_temp.mean(),
+						y_err:         average_temp.error(),
+						global_cooled: page_access.caused_cooling,
+					}
 				})
-				.unzip::<_, _, Vec<_>, Vec<_>>();
+				.collect::<Vec<_>>();
+
+			let max_y = points.iter().map(|p| p.y_avg).max_by(f64::total_cmp).unwrap_or(0.0);
 
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
 			fg.axes2d()
-				.lines(&points_x, &points_y, &[
-					PlotOption::Caption("Page locations"),
+				.boxes_set_width(
+					points.iter().map(|p| p.x),
+					points.iter().map(|p| if p.global_cooled { max_y } else { 0.0 }),
+					(0..points.len()).map(|_| 0.1 / (points.len() as f64)),
+					&[
+						PlotOption::Caption("Global cooling"),
+						PlotOption::Color("red"),
+						PlotOption::LineWidth(0.1),
+					],
+				)
+				.lines(points.iter().map(|p| p.x), points.iter().map(|p| p.y_avg), &[
+					PlotOption::Caption("Page locations (Avg)"),
 					PlotOption::Color("black"),
-					PlotOption::PointSymbol('.'),
-					PlotOption::PointSize(1.0),
+					PlotOption::LineStyle(DashType::Solid),
+					PlotOption::LineWidth(1.0),
 				])
+				.fill_between(
+					points.iter().map(|p| p.x),
+					points.iter().map(|p| p.y_avg - p.y_err),
+					points.iter().map(|p| p.y_avg + p.y_err),
+					&[
+						PlotOption::Caption("Page locations (Error)"),
+						PlotOption::Color("green"),
+						PlotOption::FillAlpha(0.3),
+						PlotOption::FillRegion(FillRegionType::Below),
+					],
+				)
+				//.set_y_log(Some(10.0))
 				.set_x_label("Time (normalized)", &[])
-				.set_y_label("Page (indexed)", &[]);
+				.set_y_label("Temperature", &[])
+				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
+				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(max_y));
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
