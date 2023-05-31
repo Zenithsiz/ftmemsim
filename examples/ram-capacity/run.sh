@@ -26,7 +26,7 @@ cargo build -p ftmemsim -p ftmemsim-graphs
 pids=""
 for ram_capacity in $RAM_CAPACITIES; do
 	config_file="config/$ram_capacity.json"
-	output_file="output/$ram_capacity.json"
+	output_file="output/$ram_capacity.bin"
 	log_file="logs/$ram_capacity.json"
 	graph_migrations_file="graphs/migrations-$ram_capacity.$GRAPH_OUTPUT_FORMAT"
 	graph_migrations_hist_file="graphs/migrations-hist-$ram_capacity.$GRAPH_OUTPUT_FORMAT"

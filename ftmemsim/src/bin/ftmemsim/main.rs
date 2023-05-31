@@ -118,7 +118,8 @@ fn main() -> Result<(), anyhow::Error> {
 		};
 
 		let output_file = fs::File::create(output_path).context("Unable to create output file")?;
-		serde_json::to_writer(output_file, &data).context("Unable to write to output file")?;
+		bincode::encode_into_std_write(data, &mut &output_file, bincode::config::standard())
+			.context("Unable to write to output file")?;
 	}
 
 	Ok(())

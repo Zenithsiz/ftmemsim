@@ -31,7 +31,8 @@ fn main() -> Result<(), anyhow::Error> {
 	// Parse the input file
 	let data = {
 		let data_file = std::fs::File::open(args.input_file).context("Unable to open input file")?;
-		serde_json::from_reader::<_, ftmemsim::data::Data>(data_file).context("Unable to parse input file")?
+		bincode::decode_from_std_read::<ftmemsim::data::Data, _, _>(&mut &data_file, bincode::config::standard())
+			.context("Unable to parse input file")?
 	};
 	tracing::info!("Read data file");
 

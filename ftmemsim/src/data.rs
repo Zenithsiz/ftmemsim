@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 /// Output data
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct Data {
 	pub hemem: HeMemData,
 }
@@ -13,6 +14,7 @@ pub struct Data {
 /// Hemem output data
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct HeMemData {
 	pub page_accesses:   PageAccesses,
 	pub page_migrations: PageMigrations,
@@ -21,6 +23,7 @@ pub struct HeMemData {
 /// Page accesses
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct PageAccesses {
 	pub accesses: Vec<PageAccess>,
 }
@@ -28,6 +31,7 @@ pub struct PageAccesses {
 /// Page access
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct PageAccess {
 	pub page_ptr:       u64,
 	pub time:           u64,
@@ -42,6 +46,7 @@ pub struct PageAccess {
 /// Page access kind
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub enum PageAccessKind {
 	Read,
 	Write,
@@ -50,6 +55,7 @@ pub enum PageAccessKind {
 /// Page migrations
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct PageMigrations {
 	// Note: We use a `BTreeMap` to ensure the order of the migrations
 	//       is always the same, as well as to sort it by page.
@@ -61,6 +67,7 @@ pub struct PageMigrations {
 /// Page migration
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct PageMigration {
 	pub prev_mem_idx: Option<usize>,
 	pub cur_mem_idx:  usize,
