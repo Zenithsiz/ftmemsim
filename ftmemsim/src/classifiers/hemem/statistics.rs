@@ -104,6 +104,9 @@ pub struct PageMigration {
 	/// Timestamp
 	pub time: u64,
 
+	/// Previous memory
+	pub prev_mem_idx: Option<MemIdx>,
+
 	/// Memory
-	pub mem_idx: MemIdx,
+	pub cur_mem_idx: MemIdx,
 }

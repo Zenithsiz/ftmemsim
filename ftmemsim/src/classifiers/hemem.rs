@@ -118,8 +118,9 @@ impl HeMem {
 
 				self.statistics
 					.register_page_migration(page_ptr, statistics::PageMigration {
-						time:    cur_time,
-						mem_idx: dst_mem_idx,
+						time:         cur_time,
+						prev_mem_idx: Some(src_mem_idx),
+						cur_mem_idx:  dst_mem_idx,
 					});
 			},
 
@@ -146,8 +147,9 @@ impl HeMem {
 							.move_mem(dst_mem_idx);
 						self.statistics
 							.register_page_migration(page_ptr, statistics::PageMigration {
-								time:    cur_time,
-								mem_idx: dst_mem_idx,
+								time:         cur_time,
+								prev_mem_idx: Some(src_mem_idx),
+								cur_mem_idx:  dst_mem_idx,
 							});
 					},
 
@@ -223,8 +225,9 @@ impl sim::Classifier for HeMem {
 			// Register an initial page migration when mapping
 			self.statistics
 				.register_page_migration(page_ptr, statistics::PageMigration {
-					time:    trace.record.time,
-					mem_idx: page_mem_idx,
+					time:         trace.record.time,
+					prev_mem_idx: None,
+					cur_mem_idx:  page_mem_idx,
 				});
 		};
 		let page = self.page_table.get_mut(page_ptr).expect("Page wasn't in page table");

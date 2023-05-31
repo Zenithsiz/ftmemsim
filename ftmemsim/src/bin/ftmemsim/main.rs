@@ -12,7 +12,12 @@ use {
 	self::args::Args,
 	anyhow::Context,
 	clap::Parser,
-	ftmemsim::{classifiers::hemem, data, PinTraceReader, Simulator},
+	ftmemsim::{
+		classifiers::{hemem, hemem::memories::MemIdx},
+		data,
+		PinTraceReader,
+		Simulator,
+	},
 	ftmemsim_util::{logger, FemtoDuration},
 	std::{fs, time::Duration},
 };
@@ -99,8 +104,9 @@ fn main() -> Result<(), anyhow::Error> {
 							let migrations = page_migrations
 								.iter()
 								.map(move |page_migration| data::PageMigration {
-									mem_idx: page_migration.mem_idx.to_usize(),
-									time:    page_migration.time,
+									prev_mem_idx: page_migration.prev_mem_idx.map(MemIdx::to_usize),
+									cur_mem_idx:  page_migration.cur_mem_idx.to_usize(),
+									time:         page_migration.time,
 								})
 								.collect();
 

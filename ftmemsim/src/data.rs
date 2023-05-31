@@ -62,6 +62,7 @@ pub struct PageMigrations {
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PageMigration {
-	pub mem_idx: usize,
-	pub time:    u64,
+	pub prev_mem_idx: Option<usize>,
+	pub cur_mem_idx:  usize,
+	pub time:         u64,
 }
