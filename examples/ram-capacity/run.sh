@@ -3,8 +3,8 @@
 set -e
 
 # Trace file to use
-#TRACE_FILE="../traces/bfs.g15.n15.trace"
-TRACE_FILE="../traces/bfs.g17.n100.t1.trace"
+#TRACE_FILE="../../resources/traces/bfs.g15.n15.trace"
+TRACE_FILE="../../resources/traces/bfs.g17.n100.t1.trace"
 
 # Profile to run under
 PROFILE="release"
@@ -24,12 +24,13 @@ cargo build -p ftmemsim -p ftmemsim-graphs
 
 # Simulate all configs and then generate the graphs
 pids=""
+outputs_files=""
 for ram_capacity in $RAM_CAPACITIES; do
 	config_file="config/$ram_capacity.json"
 	output_file="output/$ram_capacity.bin.gz"
-	log_file="logs/$ram_capacity.json"
 	graph_migrations_file="graphs/migrations-$ram_capacity.$GRAPH_OUTPUT_FORMAT"
-	graph_migrations_hist_file="graphs/migrations-hist-$ram_capacity.$GRAPH_OUTPUT_FORMAT"
+
+	outputs_files+="$output_file "
 
 	printf "Simulating $config_file\n"
 
@@ -41,15 +42,8 @@ for ram_capacity in $RAM_CAPACITIES; do
 		| sponge "$config_file" \
 		&& \
 
-
-	# Note: We Remove the log file since we append in all next steps
-	rm -rf "$log_file" \
-		&& \
-
 	# Then run the simulation
 	cargo run -q --profile "$PROFILE" -p ftmemsim -- \
-		--log-file-append \
-		--log-file "$log_file" \
 		--config "$config_file" \
 		"$TRACE_FILE" \
 		--output "$output_file" \
@@ -58,27 +52,25 @@ for ram_capacity in $RAM_CAPACITIES; do
 	# Finally run the graphs
 	# TODO: Run these in parallel?
 	cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
-		--log-file-append \
-		--log-file "$log_file" \
 		page-migrations \
 		"$output_file" \
 		--output "$graph_migrations_file" \
 		--output-width  "$GRAPH_OUTPUT_WIDTH" \
 		--output-height "$GRAPH_OUTPUT_HEIGHT" \
-		&& \
-
-	cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
-		--log-file-append \
-		--log-file "$log_file" \
-		page-migrations-hist \
-		"$output_file" \
-		--output "$graph_migrations_hist_file" \
-		--output-width  "$GRAPH_OUTPUT_WIDTH" \
-		--output-height "$GRAPH_OUTPUT_HEIGHT" \
 		&
+
 
 	pids+="$! "
 done
 
 wait $pids
 printf "Finished simulating\n"
+
+printf "Generating `page-migrations-hist-multiple` graph for $outputs_files"
+graph_migrations_hist_file="graphs/migrations-hist.$GRAPH_OUTPUT_FORMAT"
+cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
+	page-migrations-hist-multiple \
+	$outputs_files \
+	--output "$graph_migrations_hist_file" \
+	--output-width  "$GRAPH_OUTPUT_WIDTH" \
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \

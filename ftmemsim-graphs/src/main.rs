@@ -152,7 +152,6 @@ fn main() -> Result<(), anyhow::Error> {
 					PlotOption::Caption("Migration count"),
 					PlotOption::Color("black"),
 				])
-				//.set_y_log(Some(10.0))
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(data.len() as f64))
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
 				.set_x_label("Migrations", &[])
@@ -160,6 +159,76 @@ fn main() -> Result<(), anyhow::Error> {
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
+
+		// TODO: This is no longer a histogram, rename it?
+		// TODO: Deduplicate this with the one above?
+		args::SubCmd::PageMigrationsHistMultiple { input_files, output } => {
+			// Parse the input files
+			let data = input_files
+				.iter()
+				.map(|input_file| self::read_data(input_file).map(|data| (input_file, data)))
+				.collect::<Result<Vec<_>, _>>()?;
+
+			// Build the data
+			// Note: `-1` since the initial migration doesn't count as a migration
+			let all_data = data
+				.into_iter()
+				.map(|(input_file, data)| {
+					let data = data
+						.hemem
+						.page_migrations
+						.migrations
+						.values()
+						.map(|page_migrations| page_migrations.len() - 1)
+						.counts()
+						.into_iter()
+						.collect::<BTreeMap<_, _>>()
+						.into_iter()
+						.flat_map(|(migrations_len, count)| (0..count).map(move |_| migrations_len))
+						.sorted_by(|lhs, rhs| lhs.cmp(rhs).reverse())
+						.collect::<Vec<_>>();
+					(input_file, data)
+				})
+				.collect::<Vec<_>>();
+
+			// Finally create and save the plot
+			let mut fg = gnuplot::Figure::new();
+			let fg_axes2d = fg.axes2d();
+			for (data_idx, (input_file, data)) in all_data.iter().enumerate() {
+				let start_color = (1.0, 0.0, 0.0);
+				let end_color = (0.0, 1.0, 0.0);
+
+				let progress = data_idx as f64 / (all_data.len() as f64 - 1.0);
+				let color = (
+					start_color.0 * (1.0 - progress) + end_color.0 * progress,
+					start_color.1 * (1.0 - progress) + end_color.1 * progress,
+					start_color.2 * (1.0 - progress) + end_color.2 * progress,
+				);
+				let color = format!(
+					"#{:02x}{:02x}{:02x}",
+					(color.0 * 255.0) as u8,
+					(color.1 * 255.0) as u8,
+					(color.2 * 255.0) as u8,
+				);
+
+				fg_axes2d.lines(0..data.len(), data, &[
+					PlotOption::Caption(&format!("Migration count ({})", input_file.display())),
+					PlotOption::Color(&color),
+				]);
+			}
+
+			fg_axes2d
+				.set_x_range(
+					AutoOption::Fix(0.0),
+					AutoOption::Fix(all_data.iter().map(|(_, data)| data.len()).max().unwrap_or(0) as f64),
+				)
+				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
+				.set_x_label("Migrations", &[])
+				.set_y_label("Migrations (flattened)", &[]);
+
+			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+		},
+
 		args::SubCmd::PageTemperature { input_file, output } => {
 			// Parse the input file
 			let data = self::read_data(&input_file)?;

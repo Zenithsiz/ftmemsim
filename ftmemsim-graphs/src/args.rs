@@ -49,6 +49,17 @@ pub enum SubCmd {
 		output: ArgsOutputFile,
 	},
 
+	/// Creates a histogram of page migrations from multiple data
+	#[clap(name = "page-migrations-hist-multiple")]
+	PageMigrationsHistMultiple {
+		/// Input files
+		input_files: Vec<PathBuf>,
+
+		/// Output
+		#[clap(flatten)]
+		output: ArgsOutputFile,
+	},
+
 	/// Page temperature
 	#[clap(name = "page-temperature")]
 	PageTemperature {
