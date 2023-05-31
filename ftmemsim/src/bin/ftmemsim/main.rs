@@ -19,6 +19,7 @@ use {
 		Simulator,
 	},
 	ftmemsim_util::{logger, FemtoDuration},
+	gzp::par::compress::ParCompress,
 	std::{fs, time::Duration},
 };
 
@@ -118,7 +119,8 @@ fn main() -> Result<(), anyhow::Error> {
 		};
 
 		let output_file = fs::File::create(output_path).context("Unable to create output file")?;
-		bincode::encode_into_std_write(data, &mut &output_file, bincode::config::standard())
+		let mut output_file = ParCompress::<gzp::deflate::Mgzip>::builder().from_writer(output_file);
+		bincode::encode_into_std_write(data, &mut output_file, bincode::config::standard())
 			.context("Unable to write to output file")?;
 	}
 

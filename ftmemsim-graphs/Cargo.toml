@@ -13,5 +13,6 @@ itertools = { workspace = true }
 gnuplot = { workspace = true }
 average = { workspace = true }
 bincode = { workspace = true }
+gzp = { workspace = true }
 ftmemsim = { workspace = true }
 ftmemsim-util = { workspace = true }

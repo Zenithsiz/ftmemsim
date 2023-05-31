@@ -13,6 +13,7 @@ use {
 	clap::Parser,
 	ftmemsim_util::logger,
 	gnuplot::{AutoOption, AxesCommon, DashType, FillRegionType, PlotOption},
+	gzp::par::decompress::ParDecompress,
 	itertools::Itertools,
 	std::{
 		collections::{BTreeMap, HashMap},
@@ -31,7 +32,8 @@ fn main() -> Result<(), anyhow::Error> {
 	// Parse the input file
 	let data = {
 		let data_file = std::fs::File::open(args.input_file).context("Unable to open input file")?;
-		bincode::decode_from_std_read::<ftmemsim::data::Data, _, _>(&mut &data_file, bincode::config::standard())
+		let mut data_file = ParDecompress::<gzp::deflate::Mgzip>::builder().from_reader(data_file);
+		bincode::decode_from_std_read::<ftmemsim::data::Data, _, _>(&mut data_file, bincode::config::standard())
 			.context("Unable to parse input file")?
 	};
 	tracing::info!("Read data file");

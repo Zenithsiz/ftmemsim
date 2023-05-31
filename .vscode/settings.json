@@ -8,6 +8,7 @@
     "hemem",
     "itertools",
     "linejoin",
+    "Mgzip",
     "minmax",
     "optane",
     "pico",
