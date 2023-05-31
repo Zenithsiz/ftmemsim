@@ -60,8 +60,8 @@ for ram_capacity in $RAM_CAPACITIES; do
 	cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
 		--log-file-append \
 		--log-file "$log_file" \
-		"$output_file" \
 		page-migrations \
+		"$output_file" \
 		--output "$graph_migrations_file" \
 		--output-width  "$GRAPH_OUTPUT_WIDTH" \
 		--output-height "$GRAPH_OUTPUT_HEIGHT" \
@@ -70,8 +70,8 @@ for ram_capacity in $RAM_CAPACITIES; do
 	cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
 		--log-file-append \
 		--log-file "$log_file" \
-		"$output_file" \
 		page-migrations-hist \
+		"$output_file" \
 		--output "$graph_migrations_hist_file" \
 		--output-width  "$GRAPH_OUTPUT_WIDTH" \
 		--output-height "$GRAPH_OUTPUT_HEIGHT" \

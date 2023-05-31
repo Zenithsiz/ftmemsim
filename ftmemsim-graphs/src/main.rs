@@ -29,18 +29,12 @@ fn main() -> Result<(), anyhow::Error> {
 	// Initialize logging
 	logger::init(args.log_file.as_deref(), args.log_file_append);
 
-	// Parse the input file
-	let data = {
-		let data_file = std::fs::File::open(args.input_file).context("Unable to open input file")?;
-		let mut data_file = ParDecompress::<gzp::deflate::Mgzip>::builder().from_reader(data_file);
-		bincode::decode_from_std_read::<ftmemsim::data::Data, _, _>(&mut data_file, bincode::config::standard())
-			.context("Unable to parse input file")?
-	};
-	tracing::info!("Read data file");
-
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageMigrations { output } => {
+		args::SubCmd::PageMigrations { input_file, output } => {
+			// Parse the input file
+			let data = self::read_data(&input_file)?;
+
 			// Then index the page pointers.
 			// Note: We do this because the page pointers are very far away, value-wise, which
 			//       causes them to display far away in the graph. Since the actual values of the
@@ -131,7 +125,10 @@ fn main() -> Result<(), anyhow::Error> {
 		},
 
 		// TODO: This is no longer a histogram, rename it?
-		args::SubCmd::PageMigrationsHist { output } => {
+		args::SubCmd::PageMigrationsHist { input_file, output } => {
+			// Parse the input file
+			let data = self::read_data(&input_file)?;
+
 			// Build the data
 			// Note: `-1` since the initial migration doesn't count as a migration
 			let data = data
@@ -163,7 +160,10 @@ fn main() -> Result<(), anyhow::Error> {
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
-		args::SubCmd::PageTemperature { output } => {
+		args::SubCmd::PageTemperature { input_file, output } => {
+			// Parse the input file
+			let data = self::read_data(&input_file)?;
+
 			let (min_time, max_time) = data
 				.hemem
 				.page_accesses
@@ -254,6 +254,20 @@ fn main() -> Result<(), anyhow::Error> {
 	}
 
 	Ok(())
+}
+
+/// Reads data from `input_file`
+fn read_data(input_file: &Path) -> Result<ftmemsim::data::Data, anyhow::Error> {
+	// Open the file
+	let data_file = std::fs::File::open(input_file).context("Unable to open input file")?;
+	let mut data_file = ParDecompress::<gzp::deflate::Mgzip>::builder().from_reader(data_file);
+
+	// Then parse it
+	let data = bincode::decode_from_std_read::<ftmemsim::data::Data, _, _>(&mut data_file, bincode::config::standard())
+		.context("Unable to parse input file")?;
+	tracing::info!("Read data file");
+
+	Ok(data)
 }
 
 /// Saves the plot `fg` to `output_file`, depending on it's extension

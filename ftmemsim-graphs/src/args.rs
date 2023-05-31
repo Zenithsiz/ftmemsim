@@ -18,9 +18,6 @@ pub struct Args {
 	#[clap(long = "log-file-append")]
 	pub log_file_append: bool,
 
-	/// Input
-	pub input_file: PathBuf,
-
 	/// Sub-command
 	#[command(subcommand)]
 	pub sub_cmd: SubCmd,
@@ -33,6 +30,9 @@ pub enum SubCmd {
 	/// Creates a graph for page migrations
 	#[clap(name = "page-migrations")]
 	PageMigrations {
+		/// Input
+		input_file: PathBuf,
+
 		/// Output
 		#[clap(flatten)]
 		output: ArgsOutputFile,
@@ -41,6 +41,9 @@ pub enum SubCmd {
 	/// Creates a histogram of page migrations
 	#[clap(name = "page-migrations-hist")]
 	PageMigrationsHist {
+		/// Input
+		input_file: PathBuf,
+
 		/// Output
 		#[clap(flatten)]
 		output: ArgsOutputFile,
@@ -49,6 +52,9 @@ pub enum SubCmd {
 	/// Page temperature
 	#[clap(name = "page-temperature")]
 	PageTemperature {
+		/// Input
+		input_file: PathBuf,
+
 		/// Output
 		#[clap(flatten)]
 		output: ArgsOutputFile,

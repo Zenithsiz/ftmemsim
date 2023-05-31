@@ -35,8 +35,8 @@ echo "Creating graphs"
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
-	"$OUTPUT_FILE" \
 	page-migrations \
+	"$OUTPUT_FILE" \
 	--output "resources/data/page_migrations.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT"
@@ -44,8 +44,8 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
-	"$OUTPUT_FILE" \
 	page-migrations-hist \
+	"$OUTPUT_FILE" \
 	--output "resources/data/page_migrations_hist.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT"
@@ -53,8 +53,8 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
-	"$OUTPUT_FILE" \
 	page-temperature \
+	"$OUTPUT_FILE" \
 	--output "resources/data/page_temperature.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT"
