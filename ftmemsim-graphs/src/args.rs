@@ -30,19 +30,7 @@ pub struct Args {
 #[expect(clippy::enum_variant_names)] // It's a coincidence, we'll add more varied names
 #[derive(Debug, clap::Subcommand)]
 pub enum SubCmd {
-	/// Creates a graph for page locations
-	///
-	/// Uses the `page_locations.yaml` data
-	#[clap(name = "page-locations")]
-	PageLocations {
-		/// Output
-		#[clap(flatten)]
-		output: ArgsOutputFile,
-	},
-
-	/// Creates a histogram of page migrations
-	///
-	/// Uses the `page_locations.yaml` data
+	/// Creates a graph for page migrations
 	#[clap(name = "page-migrations")]
 	PageMigrations {
 		/// Output
@@ -50,9 +38,15 @@ pub enum SubCmd {
 		output: ArgsOutputFile,
 	},
 
+	/// Creates a histogram of page migrations
+	#[clap(name = "page-migrations-hist")]
+	PageMigrationsHist {
+		/// Output
+		#[clap(flatten)]
+		output: ArgsOutputFile,
+	},
+
 	/// Page temperature
-	///
-	/// Uses the `page_accesses.yaml` data
 	#[clap(name = "page-temperature")]
 	PageTemperature {
 		/// Output

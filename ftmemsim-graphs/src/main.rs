@@ -36,15 +36,15 @@ fn main() -> Result<(), anyhow::Error> {
 
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageLocations { output } => {
+		args::SubCmd::PageMigrations { output } => {
 			// Then index the page pointers.
 			// Note: We do this because the page pointers are very far away, value-wise, which
 			//       causes them to display far away in the graph. Since the actual values of the
 			//       pages don't matter to us, we just index them by order of appearance.
 			let page_ptr_idxs = data
 				.hemem
-				.page_locations
-				.locations
+				.page_migrations
+				.migrations
 				.iter()
 				.enumerate()
 				.map(|(idx, (page_ptr, _))| (page_ptr, idx))
@@ -56,10 +56,10 @@ fn main() -> Result<(), anyhow::Error> {
 			// TODO: Better defaults when empty?
 			let (min_time, max_time) = data
 				.hemem
-				.page_locations
-				.locations
+				.page_migrations
+				.migrations
 				.iter()
-				.flat_map(|(_, page_locations)| page_locations.iter().map(|page_location| page_location.time))
+				.flat_map(|(_, page_migrations)| page_migrations.iter().map(|page_migration| page_migration.time))
 				.minmax()
 				.into_option()
 				.unwrap_or((0, 1));
@@ -71,24 +71,24 @@ fn main() -> Result<(), anyhow::Error> {
 			}
 			let points_alloc = data
 				.hemem
-				.page_locations
-				.locations
+				.page_migrations
+				.migrations
 				.iter()
-				.flat_map(|(page_ptr, page_locations)| {
-					page_locations.first().map(|page_location| Point {
-						x: (page_location.time - min_time) as f64 / (max_time - min_time) as f64,
+				.flat_map(|(page_ptr, page_migrations)| {
+					page_migrations.first().map(|page_migration| Point {
+						x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
 						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
 					})
 				})
 				.collect::<Vec<_>>();
 			let points_migration = data
 				.hemem
-				.page_locations
-				.locations
+				.page_migrations
+				.migrations
 				.iter()
-				.flat_map(|(page_ptr, page_locations)| {
-					page_locations.iter().skip(1).map(|page_location| Point {
-						x: (page_location.time - min_time) as f64 / (max_time - min_time) as f64,
+				.flat_map(|(page_ptr, page_migrations)| {
+					page_migrations.iter().skip(1).map(|page_migration| Point {
+						x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
 						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
 					})
 				})
@@ -98,7 +98,7 @@ fn main() -> Result<(), anyhow::Error> {
 			let mut fg = gnuplot::Figure::new();
 			fg.axes2d()
 				.points(points_alloc.iter().map(|p| p.x), points_alloc.iter().map(|p| p.y), &[
-					PlotOption::Caption("Page locations (Allocation)"),
+					PlotOption::Caption("Page migrations (Allocation)"),
 					PlotOption::Color("red"),
 					PlotOption::PointSymbol('O'),
 					PlotOption::PointSize(0.2),
@@ -107,7 +107,7 @@ fn main() -> Result<(), anyhow::Error> {
 					points_migration.iter().map(|p| p.x),
 					points_migration.iter().map(|p| p.y),
 					&[
-						PlotOption::Caption("Page locations (Migrations)"),
+						PlotOption::Caption("Page migrations (Migrations)"),
 						PlotOption::Color("black"),
 						PlotOption::PointSymbol('O'),
 						PlotOption::PointSize(0.2),
@@ -120,16 +120,15 @@ fn main() -> Result<(), anyhow::Error> {
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
 
-		// TODO: Allow customization for all of the parameters here?
-		args::SubCmd::PageMigrations { output } => {
+		args::SubCmd::PageMigrationsHist { output } => {
 			// Build the data
-			// Note: `-1` since the initial location doesn't count as a migration
+			// Note: `-1` since the initial migration doesn't count as a migration
 			let data = data
 				.hemem
-				.page_locations
-				.locations
+				.page_migrations
+				.migrations
 				.values()
-				.map(|page_locations| page_locations.len() - 1)
+				.map(|page_migrations| page_migrations.len() - 1)
 				.counts()
 				.into_iter()
 				.collect::<BTreeMap<_, _>>();
@@ -220,7 +219,7 @@ fn main() -> Result<(), anyhow::Error> {
 					],
 				)
 				.lines(points.iter().map(|p| p.x), points.iter().map(|p| p.y_avg), &[
-					PlotOption::Caption("Page locations (Avg)"),
+					PlotOption::Caption("Page migrations (Avg)"),
 					PlotOption::Color("black"),
 					PlotOption::LineStyle(DashType::Solid),
 					PlotOption::LineWidth(1.0),
@@ -230,7 +229,7 @@ fn main() -> Result<(), anyhow::Error> {
 					points.iter().map(|p| p.y_avg - p.y_err),
 					points.iter().map(|p| p.y_avg + p.y_err),
 					&[
-						PlotOption::Caption("Page locations (Error)"),
+						PlotOption::Caption("Page migrations (Error)"),
 						PlotOption::Color("green"),
 						PlotOption::FillAlpha(0.3),
 						PlotOption::FillRegion(FillRegionType::Below),

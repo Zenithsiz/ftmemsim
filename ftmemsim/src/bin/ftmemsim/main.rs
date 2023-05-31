@@ -69,7 +69,7 @@ fn main() -> Result<(), anyhow::Error> {
 		let hemem_statistics = hemem.statistics();
 		let data = data::Data {
 			hemem: data::HeMemData {
-				page_accesses:  data::PageAccesses {
+				page_accesses:   data::PageAccesses {
 					accesses: hemem_statistics
 						.accesses()
 						.iter()
@@ -91,20 +91,20 @@ fn main() -> Result<(), anyhow::Error> {
 						})
 						.collect(),
 				},
-				page_locations: data::PageLocations {
-					locations: hemem_statistics
-						.page_locations()
+				page_migrations: data::PageMigrations {
+					migrations: hemem_statistics
+						.page_migrations()
 						.iter()
-						.map(|(page_ptr, page_locations)| {
-							let locations = page_locations
+						.map(|(page_ptr, page_migrations)| {
+							let migrations = page_migrations
 								.iter()
-								.map(move |page_location| data::PageLocation {
-									mem_idx: page_location.mem_idx.to_usize(),
-									time:    page_location.time,
+								.map(move |page_migration| data::PageMigration {
+									mem_idx: page_migration.mem_idx.to_usize(),
+									time:    page_migration.time,
 								})
 								.collect();
 
-							(page_ptr.to_u64(), locations)
+							(page_ptr.to_u64(), migrations)
 						})
 						.collect(),
 				},

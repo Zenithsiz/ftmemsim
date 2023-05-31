@@ -14,8 +14,8 @@ pub struct Data {
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct HeMemData {
-	pub page_accesses:  PageAccesses,
-	pub page_locations: PageLocations,
+	pub page_accesses:   PageAccesses,
+	pub page_migrations: PageMigrations,
 }
 
 /// Page accesses
@@ -47,21 +47,21 @@ pub enum PageAccessKind {
 	Write,
 }
 
-/// Page locations
+/// Page migrations
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct PageLocations {
-	// Note: We use a `BTreeMap` to ensure the order of the locations
+pub struct PageMigrations {
+	// Note: We use a `BTreeMap` to ensure the order of the migrations
 	//       is always the same, as well as to sort it by page.
 	// TODO: Just use `HashMap` here and instead just sort the data when
 	//       creating the graphs?
-	pub locations: BTreeMap<u64, Vec<PageLocation>>,
+	pub migrations: BTreeMap<u64, Vec<PageMigration>>,
 }
 
-/// Page location over time
+/// Page migration
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct PageLocation {
+pub struct PageMigration {
 	pub mem_idx: usize,
 	pub time:    u64,
 }

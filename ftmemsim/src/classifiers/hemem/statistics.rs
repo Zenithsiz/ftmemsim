@@ -12,8 +12,8 @@ pub struct Statistics {
 	/// All accesses
 	accesses: Vec<Access>,
 
-	/// Page locations
-	page_locations: HashMap<PagePtr, Vec<PageLocation>>,
+	/// Page migrations
+	page_migration: HashMap<PagePtr, Vec<PageMigration>>,
 }
 
 impl Statistics {
@@ -21,7 +21,7 @@ impl Statistics {
 	pub fn new() -> Self {
 		Self {
 			accesses:       vec![],
-			page_locations: HashMap::new(),
+			page_migration: HashMap::new(),
 		}
 	}
 
@@ -30,9 +30,9 @@ impl Statistics {
 		self.accesses.push(access);
 	}
 
-	/// Registers a new location for a page
-	pub fn register_page_location(&mut self, page_ptr: PagePtr, page_location: PageLocation) {
-		self.page_locations.entry(page_ptr).or_default().push(page_location);
+	/// Registers migration for a page
+	pub fn register_page_migration(&mut self, page_ptr: PagePtr, page_migration: PageMigration) {
+		self.page_migration.entry(page_ptr).or_default().push(page_migration);
 	}
 
 	/// Returns all accesses
@@ -40,9 +40,9 @@ impl Statistics {
 		&self.accesses
 	}
 
-	/// Returns all page locations
-	pub fn page_locations(&self) -> &HashMap<PagePtr, Vec<PageLocation>> {
-		&self.page_locations
+	/// Returns all page migrations
+	pub fn page_migrations(&self) -> &HashMap<PagePtr, Vec<PageMigration>> {
+		&self.page_migration
 	}
 }
 
@@ -98,9 +98,9 @@ pub enum AccessMem {
 	Resided(MemIdx),
 }
 
-/// Page location
+/// Page migration
 #[derive(Clone, Debug)]
-pub struct PageLocation {
+pub struct PageMigration {
 	/// Timestamp
 	pub time: u64,
 

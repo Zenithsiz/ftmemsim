@@ -117,7 +117,7 @@ impl HeMem {
 				page.move_mem(dst_mem_idx);
 
 				self.statistics
-					.register_page_location(page_ptr, statistics::PageLocation {
+					.register_page_migration(page_ptr, statistics::PageMigration {
 						time:    cur_time,
 						mem_idx: dst_mem_idx,
 					});
@@ -145,7 +145,7 @@ impl HeMem {
 							.expect("Page wasn't in page table")
 							.move_mem(dst_mem_idx);
 						self.statistics
-							.register_page_location(page_ptr, statistics::PageLocation {
+							.register_page_migration(page_ptr, statistics::PageMigration {
 								time:    cur_time,
 								mem_idx: dst_mem_idx,
 							});
@@ -220,9 +220,9 @@ impl sim::Classifier for HeMem {
 			tracing::trace!(?page_ptr, "Mapping page");
 			let page_mem_idx = self.map_page(page_ptr).context("Unable to map page")?;
 
-			// Register an initial page location when mapping
+			// Register an initial page migration when mapping
 			self.statistics
-				.register_page_location(page_ptr, statistics::PageLocation {
+				.register_page_migration(page_ptr, statistics::PageMigration {
 					time:    trace.record.time,
 					mem_idx: page_mem_idx,
 				});
@@ -328,26 +328,26 @@ impl sim::Classifier for HeMem {
 				average_cur_temperature.error()
 			)?;
 
-			let average_page_locations = self
+			let average_page_migrations = self
 				.statistics
-				.page_locations()
+				.page_migrations()
 				.iter()
-				.map(|(_, locations)| locations.len() as f64)
+				.map(|(_, migrations)| migrations.len() as f64)
 				.collect::<average::Variance>();
-			let (min_page_locations, max_page_locations) = self
+			let (min_page_migrations, max_page_migrations) = self
 				.statistics
-				.page_locations()
+				.page_migrations()
 				.iter()
-				.map(|(_, locations)| locations.len() as f64)
+				.map(|(_, migrations)| migrations.len() as f64)
 				.minmax()
 				.into_option()
 				.unwrap_or((f64::NEG_INFINITY, f64::INFINITY));
 
 			writeln!(
 				f,
-				"Average page locations: {:.4} ± {:.4} ({min_page_locations:.2}..{max_page_locations:.2})",
-				average_page_locations.mean(),
-				average_page_locations.error()
+				"Average page migrations: {:.4} ± {:.4} ({min_page_migrations:.2}..{max_page_migrations:.2})",
+				average_page_migrations.mean(),
+				average_page_migrations.error()
 			)?;
 		}
 

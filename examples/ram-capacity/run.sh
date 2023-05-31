@@ -28,8 +28,8 @@ for ram_capacity in $RAM_CAPACITIES; do
 	config_file="config/$ram_capacity.json"
 	output_file="output/$ram_capacity.json"
 	log_file="logs/$ram_capacity.json"
-	graph_locations_file="graphs/locations-$ram_capacity.$GRAPH_OUTPUT_FORMAT"
 	graph_migrations_file="graphs/migrations-$ram_capacity.$GRAPH_OUTPUT_FORMAT"
+	graph_migrations_hist_file="graphs/migrations-hist-$ram_capacity.$GRAPH_OUTPUT_FORMAT"
 
 	printf "Simulating $config_file\n"
 
@@ -61,8 +61,8 @@ for ram_capacity in $RAM_CAPACITIES; do
 		--log-file-append \
 		--log-file "$log_file" \
 		"$output_file" \
-		page-locations \
-		--output "$graph_locations_file" \
+		page-migrations \
+		--output "$graph_migrations_file" \
 		--output-width  "$GRAPH_OUTPUT_WIDTH" \
 		--output-height "$GRAPH_OUTPUT_HEIGHT" \
 		&& \
@@ -71,8 +71,8 @@ for ram_capacity in $RAM_CAPACITIES; do
 		--log-file-append \
 		--log-file "$log_file" \
 		"$output_file" \
-		page-migrations \
-		--output "$graph_migrations_file" \
+		page-migrations-hist \
+		--output "$graph_migrations_hist_file" \
 		--output-width  "$GRAPH_OUTPUT_WIDTH" \
 		--output-height "$GRAPH_OUTPUT_HEIGHT" \
 		&

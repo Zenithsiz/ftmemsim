@@ -9,8 +9,8 @@ LOG_FILE="latest.log"
 PROFILE="release"
 
 #TRACE_FILE="resources/traces/bfs.g5.n5.trace"
-TRACE_FILE="resources/traces/bfs.g15.n15.trace"
-#TRACE_FILE="resources/traces/bfs.g17.n100.t1.trace"
+#TRACE_FILE="resources/traces/bfs.g15.n15.trace"
+TRACE_FILE="resources/traces/bfs.g17.n100.t1.trace"
 #TRACE_FILE="resources/traces/bc.g18.n100.t1.trace"
 
 OUTPUT_FILE="resources/data/output.json"
@@ -36,8 +36,8 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
 	"$OUTPUT_FILE" \
-	page-locations \
-	--output "resources/data/page_locations.$GRAPH_OUTPUT_FORMAT" \
+	page-migrations \
+	--output "resources/data/page_migrations.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT"
 
@@ -45,8 +45,8 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
 	"$OUTPUT_FILE" \
-	page-migrations \
-	--output "resources/data/page_migrations.$GRAPH_OUTPUT_FORMAT" \
+	page-migrations-hist \
+	--output "resources/data/page_migrations_hist.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT"
 
