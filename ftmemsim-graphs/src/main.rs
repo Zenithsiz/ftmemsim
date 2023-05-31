@@ -130,6 +130,7 @@ fn main() -> Result<(), anyhow::Error> {
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
 
+		// TODO: This is no longer a histogram, rename it?
 		args::SubCmd::PageMigrationsHist { output } => {
 			// Build the data
 			// Note: `-1` since the initial migration doesn't count as a migration
@@ -141,27 +142,24 @@ fn main() -> Result<(), anyhow::Error> {
 				.map(|page_migrations| page_migrations.len() - 1)
 				.counts()
 				.into_iter()
-				.collect::<BTreeMap<_, _>>();
+				.collect::<BTreeMap<_, _>>()
+				.into_iter()
+				.flat_map(|(migrations_len, count)| (0..count).map(move |_| migrations_len))
+				.sorted_by(|lhs, rhs| lhs.cmp(rhs).reverse())
+				.collect::<Vec<_>>();
 
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
 			fg.axes2d()
-				.boxes_set_width(data.keys(), data.values(), (0..data.len()).map(|_| 0.8), &[
+				.lines(0..data.len(), &data, &[
 					PlotOption::Caption("Migration count"),
 					PlotOption::Color("black"),
 				])
-				.set_y_log(Some(10.0))
-				.set_x_ticks(Some((AutoOption::Fix(1.0), 0)), &[], &[])
-				.set_x_range(
-					AutoOption::Fix(-0.5),
-					AutoOption::Fix(
-						data.last_key_value()
-							.map_or(0.5, |(&migrations, _)| migrations as f64 + 0.5),
-					),
-				)
+				//.set_y_log(Some(10.0))
+				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(data.len() as f64))
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
 				.set_x_label("Migrations", &[])
-				.set_y_label("Count", &[]);
+				.set_y_label("Migrations (flattened)", &[]);
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
