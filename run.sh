@@ -32,6 +32,8 @@ cargo run --profile "$PROFILE" -p ftmemsim -- \
 	--output "$OUTPUT_FILE"
 
 echo "Creating graphs"
+cargo build --profile "$PROFILE" -p ftmemsim-graphs
+
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
@@ -39,7 +41,8 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	"$OUTPUT_FILE" \
 	--output "resources/data/page_migrations.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
-	--output-height "$GRAPH_OUTPUT_HEIGHT"
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
@@ -48,7 +51,8 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	"$OUTPUT_FILE" \
 	--output "resources/data/page_migrations_hist.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
-	--output-height "$GRAPH_OUTPUT_HEIGHT"
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
@@ -57,4 +61,44 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	"$OUTPUT_FILE" \
 	--output "resources/data/page_temperature.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
-	--output-height "$GRAPH_OUTPUT_HEIGHT"
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	&
+
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	page-temperature-density \
+	"$OUTPUT_FILE" \
+	--output "resources/data/page_temperature_density.$GRAPH_OUTPUT_FORMAT" \
+	--output-width  "$GRAPH_OUTPUT_WIDTH" \
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--temp-exponent "0.15" \
+	--temp-read-weight "1.0" \
+	--temp-write-weight "2.0" \
+	&
+
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	page-temperature-density \
+	"$OUTPUT_FILE" \
+	--output "resources/data/page_temperature_density.read.$GRAPH_OUTPUT_FORMAT" \
+	--output-width  "$GRAPH_OUTPUT_WIDTH" \
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--temp-exponent "0.15" \
+	--temp-write-weight "0.0" \
+	&
+
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	page-temperature-density \
+	"$OUTPUT_FILE" \
+	--output "resources/data/page_temperature_density.write.$GRAPH_OUTPUT_FORMAT" \
+	--output-width  "$GRAPH_OUTPUT_WIDTH" \
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--temp-exponent "0.15" \
+	--temp-read-weight "0.0" \
+	&
+
+wait

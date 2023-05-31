@@ -1,7 +1,7 @@
 //! Creates graphs from `ftmemsim`'s output
 
 // Features
-#![feature(lint_reasons)]
+#![feature(lint_reasons, array_windows, float_minimum_maximum)]
 
 // Modules
 mod args;
@@ -16,7 +16,7 @@ use {
 	gzp::par::decompress::ParDecompress,
 	itertools::Itertools,
 	std::{
-		collections::{BTreeMap, HashMap},
+		collections::{BTreeMap, HashMap, VecDeque},
 		path::Path,
 	},
 };
@@ -317,6 +317,122 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_label("Temperature", &[])
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(max_y));
+
+			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+		},
+
+		args::SubCmd::PageTemperatureDensity {
+			input_file,
+			output,
+			temp_exponent,
+			temp_read_weight,
+			temp_write_weight,
+		} => {
+			// Parse the input file
+			let data = self::read_data(&input_file)?;
+
+			let (min_time, max_time) = data
+				.hemem
+				.page_accesses
+				.accesses
+				.iter()
+				.map(|page_access| page_access.time)
+				.minmax()
+				.into_option()
+				.unwrap_or((0, 1));
+
+			// Then index the page pointers.
+			// Note: We do this because the page pointers are very far away, value-wise, which
+			//       causes them to display far away in the graph. Since the actual values of the
+			//       pages don't matter to us, we just index them by order of appearance.
+			let page_ptr_idxs = data
+				.hemem
+				.page_migrations
+				.migrations
+				.iter()
+				.enumerate()
+				.map(|(idx, (page_ptr, _))| (page_ptr, idx))
+				.collect::<std::collections::BTreeMap<_, _>>();
+
+
+			// Get all the points
+			let mut cur_temps = HashMap::<u64, f64>::new();
+			let points = data
+				.hemem
+				.page_accesses
+				.accesses
+				.iter()
+				.group_by(|page_access| page_access.page_ptr)
+				.into_iter()
+				.map(|(page_ptr, page_accesses)| {
+					let mut temps = page_accesses
+						.map(|page_access| {
+							let cur_temp = cur_temps.entry(page_ptr).or_insert(0.0);
+							match page_access.kind {
+								ftmemsim::data::PageAccessKind::Read => *cur_temp += temp_read_weight,
+								ftmemsim::data::PageAccessKind::Write => *cur_temp += temp_write_weight,
+							};
+
+							(page_access.time, *cur_temp)
+						})
+						.sorted_by_key(|&(time, _)| time)
+						.collect::<VecDeque<_>>();
+
+					let last_temp = temps.back().map_or(0.0, |&(_, temp)| temp);
+					temps.push_front((min_time, 0.0));
+					temps.push_back((max_time, last_temp));
+
+					(page_ptr, Vec::from(temps))
+				})
+				.collect::<BTreeMap<_, _>>();
+
+			let max_temp = points
+				.values()
+				.flat_map(|temps| temps.iter().map(|&(_, temp)| temp))
+				.max_by(f64::total_cmp)
+				.unwrap_or(0.0);
+
+			// Finally create and save the plot
+			let mut fg = gnuplot::Figure::new();
+			let fg_axes2d: &mut gnuplot::Axes2D = fg.axes2d();
+			for (&page_ptr, temps) in &points {
+				let page_ptr_idx = *page_ptr_idxs.get(&page_ptr).expect("Page ptr had no index");
+
+				for &[(prev_time2, prev_temp), (cur_time, cur_temp)] in temps.array_windows::<2>() {
+					let prev_time = (prev_time2 - min_time) as f64 / (max_time - min_time) as f64;
+					let cur_time = (cur_time - min_time) as f64 / (max_time - min_time) as f64;
+
+					let start_color = (1.0, 0.0, 0.0);
+					let end_color = (0.0, 1.0, 0.0);
+
+					let progress = (prev_temp + cur_temp) / (2.0 * max_temp);
+					let progress = progress.powf(temp_exponent);
+
+					let color = (
+						start_color.0 * (1.0 - progress) + end_color.0 * progress,
+						start_color.1 * (1.0 - progress) + end_color.1 * progress,
+						start_color.2 * (1.0 - progress) + end_color.2 * progress,
+					);
+					let color = format!(
+						"#{:02x}{:02x}{:02x}",
+						(color.0 * 255.0) as u8,
+						(color.1 * 255.0) as u8,
+						(color.2 * 255.0) as u8,
+					);
+
+					fg_axes2d.fill_between([prev_time, cur_time], [page_ptr_idx; 2], [page_ptr_idx + 1; 2], &[
+						PlotOption::Color(&color),
+						PlotOption::FillAlpha(1.0),
+						PlotOption::FillRegion(FillRegionType::Below),
+					]);
+				}
+			}
+
+			fg_axes2d
+				.set_x_label("Time (normalized)", &[])
+				.set_y_label("Page (indexed)", &[])
+				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
+				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},

@@ -70,6 +70,31 @@ pub enum SubCmd {
 		#[clap(flatten)]
 		output: ArgsOutputFile,
 	},
+
+	/// Page temperature density
+	#[clap(name = "page-temperature-density")]
+	PageTemperatureDensity {
+		/// Input
+		input_file: PathBuf,
+
+		/// Output
+		#[clap(flatten)]
+		output: ArgsOutputFile,
+
+		/// Temperature exponent
+		#[clap(long = "temp-exponent", default_value_t = 1.0)]
+		temp_exponent: f64,
+
+		/// Read weight for temperature
+		#[clap(long = "temp-read-weight", default_value_t = 1.0)]
+		#[clap(allow_hyphen_values = true)]
+		temp_read_weight: f64,
+
+		/// Write weight for temperature
+		#[clap(long = "temp-write-weight", default_value_t = 2.0)]
+		#[clap(allow_hyphen_values = true)]
+		temp_write_weight: f64,
+	},
 }
 
 /// Output file
