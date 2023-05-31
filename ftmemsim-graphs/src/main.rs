@@ -33,6 +33,7 @@ fn main() -> Result<(), anyhow::Error> {
 		let data_file = std::fs::File::open(args.input_file).context("Unable to open input file")?;
 		serde_json::from_reader::<_, ftmemsim::data::Data>(data_file).context("Unable to parse input file")?
 	};
+	tracing::info!("Read data file");
 
 	// Then check the sub-command
 	match args.sub_cmd {
@@ -69,46 +70,52 @@ fn main() -> Result<(), anyhow::Error> {
 				x: f64,
 				y: usize,
 			}
-			let points_alloc = data
-				.hemem
-				.page_migrations
-				.migrations
-				.iter()
-				.flat_map(|(page_ptr, page_migrations)| {
-					page_migrations.first().map(|page_migration| Point {
+
+			let mut points_alloc = vec![];
+			let mut points_migration_to_faster = vec![];
+			let mut points_migration_to_slower = vec![];
+			for (page_ptr, page_migrations) in &data.hemem.page_migrations.migrations {
+				for page_migration in page_migrations {
+					let points = match page_migration.prev_mem_idx {
+						Some(0) => &mut points_migration_to_slower,
+						Some(1) => &mut points_migration_to_faster,
+						None => &mut points_alloc,
+
+						Some(mem_idx) => unreachable!("Unknown memory index: {mem_idx}"),
+					};
+
+					points.push(Point {
 						x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
 						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
-					})
-				})
-				.collect::<Vec<_>>();
-			let points_migration = data
-				.hemem
-				.page_migrations
-				.migrations
-				.iter()
-				.flat_map(|(page_ptr, page_migrations)| {
-					page_migrations.iter().skip(1).map(|page_migration| Point {
-						x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
-						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
-					})
-				})
-				.collect::<Vec<_>>();
+					});
+				}
+			}
 
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
 			fg.axes2d()
 				.points(points_alloc.iter().map(|p| p.x), points_alloc.iter().map(|p| p.y), &[
 					PlotOption::Caption("Page migrations (Allocation)"),
-					PlotOption::Color("red"),
+					PlotOption::Color("black"),
 					PlotOption::PointSymbol('O'),
 					PlotOption::PointSize(0.2),
 				])
 				.points(
-					points_migration.iter().map(|p| p.x),
-					points_migration.iter().map(|p| p.y),
+					points_migration_to_faster.iter().map(|p| p.x),
+					points_migration_to_faster.iter().map(|p| p.y),
 					&[
-						PlotOption::Caption("Page migrations (Migrations)"),
-						PlotOption::Color("black"),
+						PlotOption::Caption("Page migrations (Migrations to faster)"),
+						PlotOption::Color("green"),
+						PlotOption::PointSymbol('O'),
+						PlotOption::PointSize(0.2),
+					],
+				)
+				.points(
+					points_migration_to_slower.iter().map(|p| p.x),
+					points_migration_to_slower.iter().map(|p| p.y),
+					&[
+						PlotOption::Caption("Page migrations (Migrations to slower)"),
+						PlotOption::Color("red"),
 						PlotOption::PointSymbol('O'),
 						PlotOption::PointSize(0.2),
 					],
