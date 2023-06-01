@@ -17,6 +17,7 @@ use {
 	itertools::Itertools,
 	palette::{LinSrgb, Mix},
 	std::{
+		cmp,
 		collections::{BTreeMap, HashMap, VecDeque},
 		path::Path,
 	},
@@ -75,11 +76,14 @@ fn main() -> Result<(), anyhow::Error> {
 			for (page_ptr, page_migrations) in &data.hemem.page_migrations.migrations {
 				for page_migration in page_migrations {
 					let points = match page_migration.prev_mem_idx {
-						Some(0) => &mut points_migration_to_slower,
-						Some(1) => &mut points_migration_to_faster,
+						// TODO: Care about how much it was moved once we have more than 2 memories?
+						// Note: Like the hemem simulator, here we assume that a lower number means faster.
+						Some(prev_mem_idx) => match page_migration.cur_mem_idx.cmp(&prev_mem_idx) {
+							cmp::Ordering::Less => &mut points_migration_to_faster,
+							cmp::Ordering::Equal => unreachable!("Memory was migration to the same memory"),
+							cmp::Ordering::Greater => &mut points_migration_to_slower,
+						},
 						None => &mut points_alloc,
-
-						Some(mem_idx) => unreachable!("Unknown memory index: {mem_idx}"),
 					};
 
 					points.push(Point {
