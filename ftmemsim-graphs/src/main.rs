@@ -131,24 +131,9 @@ fn main() -> Result<(), anyhow::Error> {
 
 		// TODO: This is no longer a histogram, rename it?
 		args::SubCmd::PageMigrationsHist { input_file, output } => {
-			// Parse the input file
+			// Parse and build the data
 			let data = self::read_data(&input_file)?;
-
-			// Build the data
-			// Note: `-1` since the initial migration doesn't count as a migration
-			let data = data
-				.hemem
-				.page_migrations
-				.migrations
-				.values()
-				.map(|page_migrations| page_migrations.len() - 1)
-				.counts()
-				.into_iter()
-				.collect::<BTreeMap<_, _>>()
-				.into_iter()
-				.flat_map(|(migrations_len, count)| (0..count).map(move |_| migrations_len))
-				.sorted_by(|lhs, rhs| lhs.cmp(rhs).reverse())
-				.collect::<Vec<_>>();
+			let data = self::page_migrations_hist_data(&data);
 
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
@@ -159,66 +144,47 @@ fn main() -> Result<(), anyhow::Error> {
 				])
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(data.len() as f64))
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
-				.set_x_label("Migrations", &[])
-				.set_y_label("Migrations (flattened)", &[]);
+				.set_x_label("Migrations (flattened)", &[])
+				.set_y_label("Migrations", &[]);
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
 
 		// TODO: This is no longer a histogram, rename it?
-		// TODO: Deduplicate this with the one above?
 		args::SubCmd::PageMigrationsHistMultiple { input_files, output } => {
-			// Parse the input files
-			let data = input_files
-				.iter()
-				.map(|input_file| self::read_data(input_file).map(|data| (input_file, data)))
-				.collect::<Result<Vec<_>, _>>()?;
-
-			// Build the data
-			// Note: `-1` since the initial migration doesn't count as a migration
-			let all_data = data
-				.into_iter()
-				.map(|(input_file, data)| {
-					let data = data
-						.hemem
-						.page_migrations
-						.migrations
-						.values()
-						.map(|page_migrations| page_migrations.len() - 1)
-						.counts()
-						.into_iter()
-						.collect::<BTreeMap<_, _>>()
-						.into_iter()
-						.flat_map(|(migrations_len, count)| (0..count).map(move |_| migrations_len))
-						.sorted_by(|lhs, rhs| lhs.cmp(rhs).reverse())
-						.collect::<Vec<_>>();
-					(input_file, data)
-				})
-				.collect::<Vec<_>>();
-
-			// Finally create and save the plot
+			// Create the figure
+			// Note: We do this before parsing the data since we parse
+			//       the files in parallel (with a limit, to not load too
+			//       many at once)
 			let mut fg = gnuplot::Figure::new();
 			let fg_axes2d = fg.axes2d();
-			for (data_idx, (input_file, data)) in all_data.iter().enumerate() {
-				let progress = data_idx as f64 / (all_data.len() as f64 - 1.0);
+
+			// Then process all input files
+			// TODO: Process them in parallel with `rayon`? Issue is that we need to add each
+			//       plot in order so that the legend stays consistent.
+			for (data_idx, input_file) in input_files.iter().enumerate() {
+				// Parse and build the data
+				let data = self::read_data(input_file).with_context(|| format!("Unable to read {input_file:?}"))?;
+				let data = self::page_migrations_hist_data(&data);
+
+				// Then render the lines
+				let progress = data_idx as f64 / (input_files.len() as f64 - 1.0);
 
 				let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), progress);
 				let color = format!("#{:x}", color.into_format::<u8>());
 
-				fg_axes2d.lines(0..data.len(), data, &[
+				fg_axes2d.lines(0..data.len(), &data, &[
 					PlotOption::Caption(&format!("Migration count ({})", input_file.display())),
 					PlotOption::Color(&color),
 				]);
 			}
 
+			// Finally finish building the graph
 			fg_axes2d
-				.set_x_range(
-					AutoOption::Fix(0.0),
-					AutoOption::Fix(all_data.iter().map(|(_, data)| data.len()).max().unwrap_or(0) as f64),
-				)
+				.set_x_range(AutoOption::Fix(0.0), AutoOption::Auto)
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
-				.set_x_label("Migrations", &[])
-				.set_y_label("Migrations (flattened)", &[]);
+				.set_x_label("Migrations (flattened)", &[])
+				.set_y_label("Migrations", &[]);
 
 			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
 		},
@@ -421,6 +387,29 @@ fn main() -> Result<(), anyhow::Error> {
 	}
 
 	Ok(())
+}
+
+
+/// Computes the data to use fr the `page-migrations-hist` graph
+fn page_migrations_hist_data(data: &ftmemsim::data::Data) -> Vec<usize> {
+	data.hemem
+		.page_migrations
+		.migrations
+		.values()
+		.map(|page_migrations| {
+			// Note: `-1` since the initial migration doesn't count as a migration
+			page_migrations.len() - 1
+		})
+		.counts()
+		.into_iter()
+		.flat_map(|(migrations_len, count)| {
+			// Note: This simply repeats the `migrations_len` entry
+			//       `count` times. Equivalent to `vec![migrations_len; count]`
+			(0..count).map(move |_| migrations_len)
+		})
+		.sorted()
+		.rev()
+		.collect::<Vec<_>>()
 }
 
 /// Reads data from `input_file`
