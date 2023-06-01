@@ -20,7 +20,7 @@ RAM_CAPACITIES="250 375 500 625 750 875 1000 1125 1250 1375 1500 1625 1750 1875 
 
 
 # Build everything before-hand
-cargo build -p ftmemsim -p ftmemsim-graphs
+cargo build --profile "$PROFILE" -p ftmemsim -p ftmemsim-graphs
 
 # Simulate all configs and then generate the graphs
 pids=""
