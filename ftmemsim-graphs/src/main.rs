@@ -420,7 +420,6 @@ fn read_data(input_file: &Path) -> Result<ftmemsim::data::Data, anyhow::Error> {
 	// Then parse it
 	let data = bincode::decode_from_std_read::<ftmemsim::data::Data, _, _>(&mut data_file, bincode::config::standard())
 		.context("Unable to parse input file")?;
-	tracing::info!("Read data file");
 
 	Ok(data)
 }
