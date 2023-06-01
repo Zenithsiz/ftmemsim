@@ -272,7 +272,6 @@ fn main() -> Result<(), anyhow::Error> {
 						PlotOption::FillRegion(FillRegionType::Below),
 					],
 				)
-				//.set_y_log(Some(10.0))
 				.set_x_label("Time (normalized)", &[])
 				.set_y_label("Temperature", &[])
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
