@@ -15,6 +15,7 @@ use {
 	gnuplot::{AutoOption, AxesCommon, DashType, FillRegionType, PlotOption},
 	gzp::par::decompress::ParDecompress,
 	itertools::Itertools,
+	palette::{LinSrgb, Mix},
 	std::{
 		collections::{BTreeMap, HashMap, VecDeque},
 		path::Path,
@@ -195,21 +196,10 @@ fn main() -> Result<(), anyhow::Error> {
 			let mut fg = gnuplot::Figure::new();
 			let fg_axes2d = fg.axes2d();
 			for (data_idx, (input_file, data)) in all_data.iter().enumerate() {
-				let start_color = (1.0, 0.0, 0.0);
-				let end_color = (0.0, 1.0, 0.0);
-
 				let progress = data_idx as f64 / (all_data.len() as f64 - 1.0);
-				let color = (
-					start_color.0 * (1.0 - progress) + end_color.0 * progress,
-					start_color.1 * (1.0 - progress) + end_color.1 * progress,
-					start_color.2 * (1.0 - progress) + end_color.2 * progress,
-				);
-				let color = format!(
-					"#{:02x}{:02x}{:02x}",
-					(color.0 * 255.0) as u8,
-					(color.1 * 255.0) as u8,
-					(color.2 * 255.0) as u8,
-				);
+
+				let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), progress);
+				let color = format!("#{:x}", color.into_format::<u8>());
 
 				fg_axes2d.lines(0..data.len(), data, &[
 					PlotOption::Caption(&format!("Migration count ({})", input_file.display())),
@@ -402,23 +392,11 @@ fn main() -> Result<(), anyhow::Error> {
 					let prev_time = (prev_time2 - min_time) as f64 / (max_time - min_time) as f64;
 					let cur_time = (cur_time - min_time) as f64 / (max_time - min_time) as f64;
 
-					let start_color = (1.0, 0.0, 0.0);
-					let end_color = (0.0, 1.0, 0.0);
-
 					let progress = (prev_temp + cur_temp) / (2.0 * max_temp);
 					let progress = progress.powf(temp_exponent);
 
-					let color = (
-						start_color.0 * (1.0 - progress) + end_color.0 * progress,
-						start_color.1 * (1.0 - progress) + end_color.1 * progress,
-						start_color.2 * (1.0 - progress) + end_color.2 * progress,
-					);
-					let color = format!(
-						"#{:02x}{:02x}{:02x}",
-						(color.0 * 255.0) as u8,
-						(color.1 * 255.0) as u8,
-						(color.2 * 255.0) as u8,
-					);
+					let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), progress);
+					let color = format!("#{:x}", color.into_format::<u8>());
 
 					fg_axes2d.fill_between([prev_time, cur_time], [page_ptr_idx; 2], [page_ptr_idx + 1; 2], &[
 						PlotOption::Color(&color),

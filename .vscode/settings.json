@@ -7,6 +7,8 @@
     "ftmemsim",
     "hemem",
     "itertools",
+    "lerp",
+    "Lerps",
     "linejoin",
     "Mgzip",
     "minmax",
@@ -14,6 +16,7 @@
     "pico",
     "PICOS",
     "plotlib",
-    "powf"
+    "powf",
+    "rrggbb"
   ]
 }

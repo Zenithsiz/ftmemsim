@@ -14,5 +14,6 @@ gnuplot = { workspace = true }
 average = { workspace = true }
 bincode = { workspace = true }
 gzp = { workspace = true }
+palette = { workspace = true }
 ftmemsim = { workspace = true }
 ftmemsim-util = { workspace = true }
