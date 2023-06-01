@@ -33,7 +33,11 @@ fn main() -> Result<(), anyhow::Error> {
 
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageMigrations { input_file, output } => {
+		args::SubCmd::PageMigrations {
+			input_file,
+			output,
+			point_size,
+		} => {
 			// Parse the input file
 			let data = self::read_data(&input_file)?;
 
@@ -100,7 +104,7 @@ fn main() -> Result<(), anyhow::Error> {
 					PlotOption::Caption("Page migrations (Allocation)"),
 					PlotOption::Color("black"),
 					PlotOption::PointSymbol('O'),
-					PlotOption::PointSize(0.2),
+					PlotOption::PointSize(point_size),
 				])
 				.points(
 					points_migration_to_faster.iter().map(|p| p.x),
@@ -109,7 +113,7 @@ fn main() -> Result<(), anyhow::Error> {
 						PlotOption::Caption("Page migrations (Migrations to faster)"),
 						PlotOption::Color("green"),
 						PlotOption::PointSymbol('O'),
-						PlotOption::PointSize(0.2),
+						PlotOption::PointSize(point_size),
 					],
 				)
 				.points(
@@ -119,7 +123,7 @@ fn main() -> Result<(), anyhow::Error> {
 						PlotOption::Caption("Page migrations (Migrations to slower)"),
 						PlotOption::Color("red"),
 						PlotOption::PointSymbol('O'),
-						PlotOption::PointSize(0.2),
+						PlotOption::PointSize(point_size),
 					],
 				)
 				.set_x_label("Time (normalized)", &[])

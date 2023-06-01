@@ -36,6 +36,10 @@ pub enum SubCmd {
 		/// Output
 		#[clap(flatten)]
 		output: ArgsOutputFile,
+
+		/// Point size
+		#[clap(long = "point-size", default_value_t = 0.2)]
+		point_size: f64,
 	},
 
 	/// Creates a histogram of page migrations
