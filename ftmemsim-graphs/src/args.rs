@@ -109,14 +109,14 @@ pub struct Output {
 	pub interactive: bool,
 
 	/// Output file
-	#[clap(short = 'o', long = "output")]
+	#[clap(short = 'o', long = "output", group = "output-file")]
 	pub file: Option<PathBuf>,
 
 	/// Output file width
-	#[clap(long = "output-width", default_value_t = 640)]
+	#[clap(long = "output-width", requires = "output-file", default_value_t = 640)]
 	pub width: u32,
 
 	/// Output file height
-	#[clap(long = "output-height", default_value_t = 480)]
+	#[clap(long = "output-height", requires = "output-file", default_value_t = 480)]
 	pub height: u32,
 }
