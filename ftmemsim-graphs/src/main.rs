@@ -358,6 +358,7 @@ fn main() -> Result<(), anyhow::Error> {
 				.group_by(|page_access| page_access.page_ptr)
 				.into_iter()
 				.map(|(page_ptr, page_accesses)| {
+					// Note: The page accesses will already be sorted by time
 					let mut temps = page_accesses
 						.map(|page_access| {
 							let cur_temp = cur_temps.entry(page_ptr).or_insert(0.0);
@@ -366,16 +367,17 @@ fn main() -> Result<(), anyhow::Error> {
 								ftmemsim::data::PageAccessKind::Write => *cur_temp += temp_write_weight,
 							};
 
-							(page_access.time, *cur_temp)
+							let time = (page_access.time - min_time) as f64 / (max_time - min_time) as f64;
+							(time, *cur_temp)
 						})
-						.sorted_by_key(|&(time, _)| time)
 						.collect::<VecDeque<_>>();
 
+					// Add a temperature at the start and end to ensure that all rectangles are drawn from both ends
 					let last_temp = temps.back().map_or(0.0, |&(_, temp)| temp);
-					temps.push_front((min_time, 0.0));
-					temps.push_back((max_time, last_temp));
+					temps.push_front((0.0, 0.0));
+					temps.push_back((1.0, last_temp));
 
-					(page_ptr, Vec::from(temps))
+					(page_ptr, temps)
 				})
 				.collect::<BTreeMap<_, _>>();
 
@@ -391,10 +393,7 @@ fn main() -> Result<(), anyhow::Error> {
 			for (&page_ptr, temps) in &points {
 				let page_ptr_idx = *page_ptr_idxs.get(&page_ptr).expect("Page ptr had no index");
 
-				for &[(prev_time2, prev_temp), (cur_time, cur_temp)] in temps.array_windows::<2>() {
-					let prev_time = (prev_time2 - min_time) as f64 / (max_time - min_time) as f64;
-					let cur_time = (cur_time - min_time) as f64 / (max_time - min_time) as f64;
-
+				for ((prev_time, prev_temp), (cur_time, cur_temp)) in temps.iter().copied().tuple_windows() {
 					let progress = (prev_temp + cur_temp) / (2.0 * max_temp);
 					let progress = progress.powf(temp_exponent);
 
