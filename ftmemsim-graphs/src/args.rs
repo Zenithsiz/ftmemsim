@@ -33,12 +33,16 @@ pub enum SubCmd {
 		/// Input
 		input_file: PathBuf,
 
+		/// Config file
+		#[clap(long = "config")]
+		config_file: PathBuf,
+
 		/// Output
 		#[clap(flatten)]
 		output: Output,
 
 		/// Point size
-		#[clap(long = "point-size", default_value_t = 0.2)]
+		#[clap(long = "point-size", default_value_t = 0.5)]
 		point_size: f64,
 	},
 

@@ -39,6 +39,7 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file "$LOG_FILE" \
 	page-migrations \
 	"$OUTPUT_FILE" \
+	--config "$CONFIG" \
 	--output "resources/data/page_migrations.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \

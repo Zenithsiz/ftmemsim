@@ -69,6 +69,7 @@ pub struct PageMigrations {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(bincode::Encode, bincode::Decode)]
 pub struct PageMigration {
+	// TODO: Switch these to `u64`s?
 	pub prev_mem_idx: Option<usize>,
 	pub cur_mem_idx:  usize,
 	pub time:         u64,

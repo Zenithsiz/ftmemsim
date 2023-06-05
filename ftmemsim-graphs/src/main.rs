@@ -17,8 +17,8 @@ use {
 	itertools::Itertools,
 	palette::{LinSrgb, Mix},
 	std::{
-		cmp,
 		collections::{BTreeMap, HashMap, VecDeque},
+		fs,
 		path::Path,
 	},
 };
@@ -35,11 +35,18 @@ fn main() -> Result<(), anyhow::Error> {
 	match args.sub_cmd {
 		args::SubCmd::PageMigrations {
 			input_file,
+			config_file,
 			output,
 			point_size,
 		} => {
+			// Parse the config
+			// TODO: Use config
+			let config = self::read_config(&config_file)
+				.with_context(|| format!("Unable to read config file: {config_file:?}"))?;
+
 			// Parse the input file
-			let data = self::read_data(&input_file)?;
+			let data =
+				self::read_data(&input_file).with_context(|| format!("Unable to read data file: {input_file:?}"))?;
 
 			// Then index the page pointers.
 			// Note: We do this because the page pointers are very far away, value-wise, which
@@ -75,18 +82,16 @@ fn main() -> Result<(), anyhow::Error> {
 			}
 
 			let mut points_alloc = vec![];
-			let mut points_migration_to_faster = vec![];
-			let mut points_migration_to_slower = vec![];
+			let mut points_migrations_all = HashMap::<(usize, usize), Vec<Point>>::new();
 			for (page_ptr, page_migrations) in &data.hemem.page_migrations.migrations {
 				for page_migration in page_migrations {
+					// Get the points to add the point to.
+					// Note: If we didn't have a previous memory index, we use the allocations bucket, else
+					//       we grab corresponding to the `(prev, cur)` migration pair
 					let points = match page_migration.prev_mem_idx {
-						// TODO: Care about how much it was moved once we have more than 2 memories?
-						// Note: Like the hemem simulator, here we assume that a lower number means faster.
-						Some(prev_mem_idx) => match page_migration.cur_mem_idx.cmp(&prev_mem_idx) {
-							cmp::Ordering::Less => &mut points_migration_to_faster,
-							cmp::Ordering::Equal => unreachable!("Memory was migration to the same memory"),
-							cmp::Ordering::Greater => &mut points_migration_to_slower,
-						},
+						Some(prev_mem_idx) => points_migrations_all
+							.entry((prev_mem_idx, page_migration.cur_mem_idx))
+							.or_default(),
 						None => &mut points_alloc,
 					};
 
@@ -99,36 +104,57 @@ fn main() -> Result<(), anyhow::Error> {
 
 			// Finally create and save the plot
 			let mut fg = gnuplot::Figure::new();
-			fg.axes2d()
+			let fg_axes2d = fg
+				.axes2d()
 				.points(points_alloc.iter().map(|p| p.x), points_alloc.iter().map(|p| p.y), &[
-					PlotOption::Caption("Page migrations (Allocation)"),
-					PlotOption::Color("black"),
+					PlotOption::Caption("Page allocations"),
+					PlotOption::Color("blue"),
 					PlotOption::PointSymbol('O'),
-					PlotOption::PointSize(point_size),
-				])
-				.points(
-					points_migration_to_faster.iter().map(|p| p.x),
-					points_migration_to_faster.iter().map(|p| p.y),
+					PlotOption::PointSize(2.0 * point_size),
+				]);
+
+			for ((prev_mem_idx, cur_mem_idx), points_migrations) in points_migrations_all {
+				// Calculate the color for these migrations
+				// Note: We use the red to dictate the current memory and green for the previous,
+				//       this is to a greener color indicates a positive migration, while a redder
+				//       color a negative migration
+				let max_mem_idx = config.hemem.memories.len();
+				let color = LinSrgb::new(
+					cur_mem_idx as f64 / max_mem_idx as f64,
+					prev_mem_idx as f64 / max_mem_idx as f64,
+					0.0,
+				);
+				let color = format!("#{:x}", color.into_format::<u8>());
+
+				// Then get the memories (for then ames)
+				let prev_mem = config
+					.hemem
+					.memories
+					.get(prev_mem_idx)
+					.context("Config had less memories than input file")?;
+				let cur_mem = config
+					.hemem
+					.memories
+					.get(cur_mem_idx)
+					.context("Config had less memories than input file")?;
+
+				fg_axes2d.points(
+					points_migrations.iter().map(|p| p.x),
+					points_migrations.iter().map(|p| p.y),
 					&[
-						PlotOption::Caption("Page migrations (Migrations to faster)"),
-						PlotOption::Color("green"),
+						PlotOption::Caption(&format!("Page migrations ({} to {})", prev_mem.name, cur_mem.name)),
+						PlotOption::Color(&color),
 						PlotOption::PointSymbol('O'),
 						PlotOption::PointSize(point_size),
 					],
-				)
-				.points(
-					points_migration_to_slower.iter().map(|p| p.x),
-					points_migration_to_slower.iter().map(|p| p.y),
-					&[
-						PlotOption::Caption("Page migrations (Migrations to slower)"),
-						PlotOption::Color("red"),
-						PlotOption::PointSymbol('O'),
-						PlotOption::PointSize(point_size),
-					],
-				)
+				);
+			}
+
+			fg_axes2d
 				.set_x_label("Time (normalized)", &[])
 				.set_y_label("Page (indexed)", &[])
-				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0));
+				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
+				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 			// Then output the plot
 			self::handle_output(output, fg).context("Unable to handle output")?;
@@ -418,6 +444,18 @@ fn page_migrations_hist_data(data: &ftmemsim::data::Data) -> Vec<usize> {
 		.sorted()
 		.rev()
 		.collect::<Vec<_>>()
+}
+
+/// Reads config from `config_file`
+fn read_config(config_file: &Path) -> Result<ftmemsim::config::Config, anyhow::Error> {
+	// Open the file
+	let config_file = fs::File::open(config_file).context("Unable to open config file")?;
+
+	// Then parse it
+	let data =
+		serde_json::from_reader::<_, ftmemsim::config::Config>(config_file).context("Unable to parse config file")?;
+
+	Ok(data)
 }
 
 /// Reads data from `input_file`
