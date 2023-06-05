@@ -130,7 +130,8 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_label("Page (indexed)", &[])
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0));
 
-			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+			// Then output the plot
+			self::handle_output(output, fg).context("Unable to handle output")?;
 		},
 
 		// TODO: This is no longer a histogram, rename it?
@@ -151,7 +152,8 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_x_label("Migrations (flattened)", &[])
 				.set_y_label("Migrations", &[]);
 
-			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+			// Then output the plot
+			self::handle_output(output, fg).context("Unable to handle output")?;
 		},
 
 		// TODO: This is no longer a histogram, rename it?
@@ -190,7 +192,8 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_x_label("Migrations (flattened)", &[])
 				.set_y_label("Migrations", &[]);
 
-			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+			// Then output the plot
+			self::handle_output(output, fg).context("Unable to handle output")?;
 		},
 
 		args::SubCmd::PageTemperature { input_file, output } => {
@@ -281,7 +284,8 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(max_y));
 
-			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+			// Then output the plot
+			self::handle_output(output, fg).context("Unable to handle output")?;
 		},
 
 		args::SubCmd::PageTemperatureDensity {
@@ -385,7 +389,8 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
-			self::save_plot(&output.file, &mut fg, output.width, output.height).context("Unable to save plot")?;
+			// Then output the plot
+			self::handle_output(output, fg).context("Unable to handle output")?;
 		},
 	}
 
@@ -426,6 +431,23 @@ fn read_data(input_file: &Path) -> Result<ftmemsim::data::Data, anyhow::Error> {
 		.context("Unable to parse input file")?;
 
 	Ok(data)
+}
+
+/// Handles the plot output
+///
+/// Outputs `fg`, if `output.file` is `Some(_)`, then shows the plot if `output.interactive` is true
+fn handle_output(output: args::Output, mut fg: gnuplot::Figure) -> Result<(), anyhow::Error> {
+	// If we have an output file, output it to file
+	if let Some(output_file) = &output.file {
+		self::save_plot(output_file, &mut fg, output.width, output.height).context("Unable to save plot")?
+	}
+
+	// Then show the interactive mode, if requested
+	if output.interactive {
+		fg.show().context("Unable to show plot")?;
+	}
+
+	Ok(())
 }
 
 /// Saves the plot `fg` to `output_file`, depending on it's extension

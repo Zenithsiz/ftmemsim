@@ -35,7 +35,7 @@ pub enum SubCmd {
 
 		/// Output
 		#[clap(flatten)]
-		output: ArgsOutputFile,
+		output: Output,
 
 		/// Point size
 		#[clap(long = "point-size", default_value_t = 0.2)]
@@ -50,7 +50,7 @@ pub enum SubCmd {
 
 		/// Output
 		#[clap(flatten)]
-		output: ArgsOutputFile,
+		output: Output,
 	},
 
 	/// Creates a histogram of page migrations from multiple data
@@ -61,7 +61,7 @@ pub enum SubCmd {
 
 		/// Output
 		#[clap(flatten)]
-		output: ArgsOutputFile,
+		output: Output,
 	},
 
 	/// Page temperature
@@ -72,7 +72,7 @@ pub enum SubCmd {
 
 		/// Output
 		#[clap(flatten)]
-		output: ArgsOutputFile,
+		output: Output,
 	},
 
 	/// Page temperature density
@@ -83,7 +83,7 @@ pub enum SubCmd {
 
 		/// Output
 		#[clap(flatten)]
-		output: ArgsOutputFile,
+		output: Output,
 
 		/// Temperature exponent
 		#[clap(long = "temp-exponent", default_value_t = 1.0)]
@@ -101,12 +101,16 @@ pub enum SubCmd {
 	},
 }
 
-/// Output file
+/// Output
 #[derive(Debug, clap::Args)]
-pub struct ArgsOutputFile {
+pub struct Output {
+	/// Interactive mode
+	#[clap(long = "interactive")]
+	pub interactive: bool,
+
 	/// Output file
 	#[clap(short = 'o', long = "output")]
-	pub file: PathBuf,
+	pub file: Option<PathBuf>,
 
 	/// Output file width
 	#[clap(long = "output-width", default_value_t = 640)]
