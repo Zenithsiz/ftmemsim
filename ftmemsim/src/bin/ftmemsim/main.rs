@@ -5,7 +5,6 @@
 
 // Modules
 mod args;
-mod config;
 
 // Imports
 use {
@@ -14,6 +13,7 @@ use {
 	clap::Parser,
 	ftmemsim::{
 		classifiers::{hemem, hemem::memories::MemIdx},
+		config,
 		data,
 		PinTraceReader,
 		Simulator,
