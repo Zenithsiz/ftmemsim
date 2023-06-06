@@ -33,128 +33,7 @@ fn main() -> Result<(), anyhow::Error> {
 
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageMigrations(cmd_args) => {
-			// Parse the config
-			// TODO: Use config
-			let config = self::read_config(&cmd_args.config_file)
-				.with_context(|| format!("Unable to read config file: {:?}", cmd_args.config_file))?;
-
-			// Parse the input file
-			let data = self::read_data(&cmd_args.input_file)
-				.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
-
-			// Then index the page pointers.
-			// Note: We do this because the page pointers are very far away, value-wise, which
-			//       causes them to display far away in the graph. Since the actual values of the
-			//       pages don't matter to us, we just index them by order of appearance.
-			let page_ptr_idxs = data
-				.hemem
-				.page_migrations
-				.migrations
-				.iter()
-				.enumerate()
-				.map(|(idx, (page_ptr, _))| (page_ptr, idx))
-				.collect::<std::collections::HashMap<_, _>>();
-
-			// Then calculate the min/max time so we can normalize it to 0..1.
-			// Note: We do this because the time values themselves don't matter, only
-			//       the relative time.
-			// TODO: Better defaults when empty?
-			let (min_time, max_time) = data
-				.hemem
-				.page_migrations
-				.migrations
-				.iter()
-				.flat_map(|(_, page_migrations)| page_migrations.iter().map(|page_migration| page_migration.time))
-				.minmax()
-				.into_option()
-				.unwrap_or((0, 1));
-
-			// And calculate the points to display
-			struct Point {
-				x: f64,
-				y: usize,
-			}
-
-			// Note: We use `BTreeMap` here to ensure a consistent order across runs (for creating gifs)
-			let mut points_alloc = vec![];
-			let mut points_migrations_all = BTreeMap::<(usize, usize), Vec<Point>>::new();
-			for (page_ptr, page_migrations) in &data.hemem.page_migrations.migrations {
-				for page_migration in page_migrations {
-					// Get the points to add the point to.
-					// Note: If we didn't have a previous memory index, we use the allocations bucket, else
-					//       we grab corresponding to the `(prev, cur)` migration pair
-					let points = match page_migration.prev_mem_idx {
-						Some(prev_mem_idx) => points_migrations_all
-							.entry((prev_mem_idx, page_migration.cur_mem_idx))
-							.or_default(),
-						None => &mut points_alloc,
-					};
-
-					points.push(Point {
-						x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
-						y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
-					});
-				}
-			}
-
-			// Finally create and save the plot
-			let mut fg = gnuplot::Figure::new();
-			let fg_axes2d = fg
-				.axes2d()
-				.points(points_alloc.iter().map(|p| p.x), points_alloc.iter().map(|p| p.y), &[
-					PlotOption::Caption("Page allocations"),
-					PlotOption::Color("blue"),
-					PlotOption::PointSymbol('O'),
-					PlotOption::PointSize(2.0 * cmd_args.point_size),
-				]);
-
-			for ((prev_mem_idx, cur_mem_idx), points_migrations) in points_migrations_all {
-				// Calculate the color for these migrations
-				// Note: We use the red to dictate the current memory and green for the previous,
-				//       this is to a greener color indicates a positive migration, while a redder
-				//       color a negative migration
-				let max_mem_idx = config.hemem.memories.len();
-				let color = LinSrgb::new(
-					cur_mem_idx as f64 / max_mem_idx as f64,
-					prev_mem_idx as f64 / max_mem_idx as f64,
-					0.0,
-				);
-				let color = format!("#{:x}", color.into_format::<u8>());
-
-				// Then get the memories (for then ames)
-				let prev_mem = config
-					.hemem
-					.memories
-					.get(prev_mem_idx)
-					.context("Config had less memories than input file")?;
-				let cur_mem = config
-					.hemem
-					.memories
-					.get(cur_mem_idx)
-					.context("Config had less memories than input file")?;
-
-				fg_axes2d.points(
-					points_migrations.iter().map(|p| p.x),
-					points_migrations.iter().map(|p| p.y),
-					&[
-						PlotOption::Caption(&format!("Page migrations ({} to {})", prev_mem.name, cur_mem.name)),
-						PlotOption::Color(&color),
-						PlotOption::PointSymbol('O'),
-						PlotOption::PointSize(cmd_args.point_size),
-					],
-				);
-			}
-
-			fg_axes2d
-				.set_x_label("Time (normalized)", &[])
-				.set_y_label("Page (indexed)", &[])
-				.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
-				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
-
-			// Then output the plot
-			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
-		},
+		args::SubCmd::PageMigrations(cmd_args) => self::draw_page_migrations(&cmd_args)?,
 
 		// TODO: This is no longer a histogram, rename it?
 		args::SubCmd::PageMigrationsHist(cmd_args) => {
@@ -408,6 +287,129 @@ fn main() -> Result<(), anyhow::Error> {
 			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 		},
 	}
+
+	Ok(())
+}
+
+/// Draws the page migrations plot
+fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::Error> {
+	// Parse the config and input file
+	let config = self::read_config(&cmd_args.config_file)
+		.with_context(|| format!("Unable to read config file: {:?}", cmd_args.config_file))?;
+	let data = self::read_data(&cmd_args.input_file)
+		.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
+
+	// Then index the page pointers.
+	// Note: We do this because the page pointers are very far away, value-wise, which
+	//       causes them to display far away in the graph. Since the actual values of the
+	//       pages don't matter to us, we just index them by order of appearance.
+	let page_ptr_idxs = data
+		.hemem
+		.page_migrations
+		.migrations
+		.iter()
+		.enumerate()
+		.map(|(idx, (page_ptr, _))| (page_ptr, idx))
+		.collect::<std::collections::HashMap<_, _>>();
+
+	// Then calculate the min/max time so we can normalize it to 0..1.
+	// Note: We do this because the time values themselves don't matter, only
+	//       the relative time.
+	// TODO: Better defaults when empty?
+	let (min_time, max_time) = data
+		.hemem
+		.page_migrations
+		.migrations
+		.iter()
+		.flat_map(|(_, page_migrations)| page_migrations.iter().map(|page_migration| page_migration.time))
+		.minmax()
+		.into_option()
+		.unwrap_or((0, 1));
+
+	// And calculate the points to display
+	struct Point {
+		x: f64,
+		y: usize,
+	}
+
+	// Note: We use `BTreeMap` here to ensure a consistent order across runs (for creating gifs)
+	let mut points_alloc = vec![];
+	let mut points_migrations_all = BTreeMap::<(usize, usize), Vec<Point>>::new();
+	for (page_ptr, page_migrations) in &data.hemem.page_migrations.migrations {
+		for page_migration in page_migrations {
+			// Get the points to add the point to.
+			// Note: If we didn't have a previous memory index, we use the allocations bucket, else
+			//       we grab corresponding to the `(prev, cur)` migration pair
+			let points = match page_migration.prev_mem_idx {
+				Some(prev_mem_idx) => points_migrations_all
+					.entry((prev_mem_idx, page_migration.cur_mem_idx))
+					.or_default(),
+				None => &mut points_alloc,
+			};
+
+			points.push(Point {
+				x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
+				y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
+			});
+		}
+	}
+
+	// Finally create and save the plot
+	let mut fg = gnuplot::Figure::new();
+	let fg_axes2d = fg
+		.axes2d()
+		.points(points_alloc.iter().map(|p| p.x), points_alloc.iter().map(|p| p.y), &[
+			PlotOption::Caption("Page allocations"),
+			PlotOption::Color("blue"),
+			PlotOption::PointSymbol('O'),
+			PlotOption::PointSize(2.0 * cmd_args.point_size),
+		]);
+
+	for ((prev_mem_idx, cur_mem_idx), points_migrations) in points_migrations_all {
+		// Calculate the color for these migrations
+		// Note: We use the red to dictate the current memory and green for the previous,
+		//       this is to a greener color indicates a positive migration, while a redder
+		//       color a negative migration
+		let max_mem_idx = config.hemem.memories.len();
+		let color = LinSrgb::new(
+			cur_mem_idx as f64 / max_mem_idx as f64,
+			prev_mem_idx as f64 / max_mem_idx as f64,
+			0.0,
+		);
+		let color = format!("#{:x}", color.into_format::<u8>());
+
+		// Then get the memories (for then ames)
+		let prev_mem = config
+			.hemem
+			.memories
+			.get(prev_mem_idx)
+			.context("Config had less memories than input file")?;
+		let cur_mem = config
+			.hemem
+			.memories
+			.get(cur_mem_idx)
+			.context("Config had less memories than input file")?;
+
+		fg_axes2d.points(
+			points_migrations.iter().map(|p| p.x),
+			points_migrations.iter().map(|p| p.y),
+			&[
+				PlotOption::Caption(&format!("Page migrations ({} to {})", prev_mem.name, cur_mem.name)),
+				PlotOption::Color(&color),
+				PlotOption::PointSymbol('O'),
+				PlotOption::PointSize(cmd_args.point_size),
+			],
+		);
+	}
+
+	fg_axes2d
+		.set_x_label("Time (normalized)", &[])
+		.set_y_label("Page (indexed)", &[])
+		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
+		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
+
+	// Then output the plot
+	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 
 	Ok(())
 }
