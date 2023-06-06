@@ -52,17 +52,7 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 		.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
 
 	// Then index the page pointers.
-	// Note: We do this because the page pointers are very far away, value-wise, which
-	//       causes them to display far away in the graph. Since the actual values of the
-	//       pages don't matter to us, we just index them by order of appearance.
-	let page_ptr_idxs = data
-		.hemem
-		.page_migrations
-		.migrations
-		.iter()
-		.enumerate()
-		.map(|(idx, (page_ptr, _))| (page_ptr, idx))
-		.collect::<std::collections::HashMap<_, _>>();
+	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
 	// Then calculate the min/max time so we can normalize it to 0..1.
 	// Note: We do this because the time values themselves don't matter, only
@@ -339,18 +329,7 @@ fn draw_page_temperature_density(cmd_args: args::PageTemperatureDensity) -> Resu
 		.unwrap_or((0, 1));
 
 	// Then index the page pointers.
-	// Note: We do this because the page pointers are very far away, value-wise, which
-	//       causes them to display far away in the graph. Since the actual values of the
-	//       pages don't matter to us, we just index them by order of appearance.
-	let page_ptr_idxs = data
-		.hemem
-		.page_migrations
-		.migrations
-		.iter()
-		.enumerate()
-		.map(|(idx, (page_ptr, _))| (page_ptr, idx))
-		.collect::<std::collections::BTreeMap<_, _>>();
-
+	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
 	// Get all the points
 	let mut cur_temps = HashMap::<u64, f64>::new();
@@ -514,4 +493,22 @@ fn save_plot(output_file: &Path, fg: &mut gnuplot::Figure, width_px: u32, height
 	}
 
 	Ok(())
+}
+
+/// Indexes all the page pointers in `data`.
+///
+///
+/// We do this because the page pointers are very far away, value-wise, which
+/// causes them to display far away in the graph. Since the actual values of the
+/// pages don't matter to us, we just index, ordering by the page pointer value.
+fn page_ptr_idxs(data: &ftmemsim::data::Data) -> BTreeMap<u64, usize> {
+	// Note: We use `migrations` since each page is guaranteed to have at least 1 migration,
+	//       the allocation.
+	data.hemem
+		.page_migrations
+		.migrations
+		.iter()
+		.enumerate()
+		.map(|(idx, (&page_ptr, _))| (page_ptr, idx))
+		.collect::<BTreeMap<_, _>>()
 }
