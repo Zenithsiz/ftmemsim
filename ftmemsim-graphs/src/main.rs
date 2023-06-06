@@ -33,20 +33,15 @@ fn main() -> Result<(), anyhow::Error> {
 
 	// Then check the sub-command
 	match args.sub_cmd {
-		args::SubCmd::PageMigrations {
-			input_file,
-			config_file,
-			output,
-			point_size,
-		} => {
+		args::SubCmd::PageMigrations(cmd_args) => {
 			// Parse the config
 			// TODO: Use config
-			let config = self::read_config(&config_file)
-				.with_context(|| format!("Unable to read config file: {config_file:?}"))?;
+			let config = self::read_config(&cmd_args.config_file)
+				.with_context(|| format!("Unable to read config file: {:?}", cmd_args.config_file))?;
 
 			// Parse the input file
-			let data =
-				self::read_data(&input_file).with_context(|| format!("Unable to read data file: {input_file:?}"))?;
+			let data = self::read_data(&cmd_args.input_file)
+				.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
 
 			// Then index the page pointers.
 			// Note: We do this because the page pointers are very far away, value-wise, which
@@ -111,7 +106,7 @@ fn main() -> Result<(), anyhow::Error> {
 					PlotOption::Caption("Page allocations"),
 					PlotOption::Color("blue"),
 					PlotOption::PointSymbol('O'),
-					PlotOption::PointSize(2.0 * point_size),
+					PlotOption::PointSize(2.0 * cmd_args.point_size),
 				]);
 
 			for ((prev_mem_idx, cur_mem_idx), points_migrations) in points_migrations_all {
@@ -146,7 +141,7 @@ fn main() -> Result<(), anyhow::Error> {
 						PlotOption::Caption(&format!("Page migrations ({} to {})", prev_mem.name, cur_mem.name)),
 						PlotOption::Color(&color),
 						PlotOption::PointSymbol('O'),
-						PlotOption::PointSize(point_size),
+						PlotOption::PointSize(cmd_args.point_size),
 					],
 				);
 			}
@@ -158,13 +153,13 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 			// Then output the plot
-			self::handle_output(output, fg).context("Unable to handle output")?;
+			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 		},
 
 		// TODO: This is no longer a histogram, rename it?
-		args::SubCmd::PageMigrationsHist { input_file, output } => {
+		args::SubCmd::PageMigrationsHist(cmd_args) => {
 			// Parse and build the data
-			let data = self::read_data(&input_file)?;
+			let data = self::read_data(&cmd_args.input_file)?;
 			let data = self::page_migrations_hist_data(&data);
 
 			// Finally create and save the plot
@@ -180,11 +175,11 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_label("Migrations", &[]);
 
 			// Then output the plot
-			self::handle_output(output, fg).context("Unable to handle output")?;
+			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 		},
 
 		// TODO: This is no longer a histogram, rename it?
-		args::SubCmd::PageMigrationsHistMultiple { input_files, output } => {
+		args::SubCmd::PageMigrationsHistMultiple(cmd_args) => {
 			// Create the figure
 			// Note: We do this before parsing the data since we parse
 			//       the files in parallel (with a limit, to not load too
@@ -195,13 +190,13 @@ fn main() -> Result<(), anyhow::Error> {
 			// Then process all input files
 			// TODO: Process them in parallel with `rayon`? Issue is that we need to add each
 			//       plot in order so that the legend stays consistent.
-			for (data_idx, input_file) in input_files.iter().enumerate() {
+			for (data_idx, input_file) in cmd_args.input_files.iter().enumerate() {
 				// Parse and build the data
 				let data = self::read_data(input_file).with_context(|| format!("Unable to read {input_file:?}"))?;
 				let data = self::page_migrations_hist_data(&data);
 
 				// Then render the lines
-				let progress = data_idx as f64 / (input_files.len() as f64 - 1.0);
+				let progress = data_idx as f64 / (cmd_args.input_files.len() as f64 - 1.0);
 
 				let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), progress);
 				let color = format!("#{:x}", color.into_format::<u8>());
@@ -220,12 +215,12 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_label("Migrations", &[]);
 
 			// Then output the plot
-			self::handle_output(output, fg).context("Unable to handle output")?;
+			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 		},
 
-		args::SubCmd::PageTemperature { input_file, output } => {
+		args::SubCmd::PageTemperature(cmd_args) => {
 			// Parse the input file
-			let data = self::read_data(&input_file)?;
+			let data = self::read_data(&cmd_args.input_file)?;
 
 			let (min_time, max_time) = data
 				.hemem
@@ -312,18 +307,12 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(max_y));
 
 			// Then output the plot
-			self::handle_output(output, fg).context("Unable to handle output")?;
+			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 		},
 
-		args::SubCmd::PageTemperatureDensity {
-			input_file,
-			output,
-			temp_exponent,
-			temp_read_weight,
-			temp_write_weight,
-		} => {
+		args::SubCmd::PageTemperatureDensity(cmd_args) => {
 			// Parse the input file
-			let data = self::read_data(&input_file)?;
+			let data = self::read_data(&cmd_args.input_file)?;
 
 			let (min_time, max_time) = data
 				.hemem
@@ -364,8 +353,8 @@ fn main() -> Result<(), anyhow::Error> {
 						.map(|page_access| {
 							let cur_temp = cur_temps.entry(page_ptr).or_insert(0.0);
 							match page_access.kind {
-								ftmemsim::data::PageAccessKind::Read => *cur_temp += temp_read_weight,
-								ftmemsim::data::PageAccessKind::Write => *cur_temp += temp_write_weight,
+								ftmemsim::data::PageAccessKind::Read => *cur_temp += cmd_args.temp_read_weight,
+								ftmemsim::data::PageAccessKind::Write => *cur_temp += cmd_args.temp_write_weight,
 							};
 
 							let time = (page_access.time - min_time) as f64 / (max_time - min_time) as f64;
@@ -396,7 +385,7 @@ fn main() -> Result<(), anyhow::Error> {
 
 				for ((prev_time, prev_temp), (cur_time, cur_temp)) in temps.iter().copied().tuple_windows() {
 					let progress = (prev_temp + cur_temp) / (2.0 * max_temp);
-					let progress = progress.powf(temp_exponent);
+					let progress = progress.powf(cmd_args.temp_exponent);
 
 					let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), progress);
 					let color = format!("#{:x}", color.into_format::<u8>());
@@ -416,7 +405,7 @@ fn main() -> Result<(), anyhow::Error> {
 				.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 			// Then output the plot
-			self::handle_output(output, fg).context("Unable to handle output")?;
+			self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 		},
 	}
 
@@ -474,10 +463,10 @@ fn read_data(input_file: &Path) -> Result<ftmemsim::data::Data, anyhow::Error> {
 /// Handles the plot output
 ///
 /// Outputs `fg`, if `output.file` is `Some(_)`, then shows the plot if `output.interactive` is true
-fn handle_output(output: args::Output, mut fg: gnuplot::Figure) -> Result<(), anyhow::Error> {
+fn handle_output(output: &args::Output, fg: &mut gnuplot::Figure) -> Result<(), anyhow::Error> {
 	// If we have an output file, output it to file
 	if let Some(output_file) = &output.file {
-		self::save_plot(output_file, &mut fg, output.width, output.height).context("Unable to save plot")?
+		self::save_plot(output_file, fg, output.width, output.height).context("Unable to save plot")?
 	}
 
 	// Then show the interactive mode, if requested

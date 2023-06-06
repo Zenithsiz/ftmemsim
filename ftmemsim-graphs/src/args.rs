@@ -27,82 +27,99 @@ pub struct Args {
 #[expect(clippy::enum_variant_names)] // It's a coincidence, we'll add more varied names
 #[derive(Debug, clap::Subcommand)]
 pub enum SubCmd {
-	/// Creates a graph for page migrations
 	#[clap(name = "page-migrations")]
-	PageMigrations {
-		/// Input
-		input_file: PathBuf,
+	PageMigrations(PageMigrations),
 
-		/// Config file
-		#[clap(long = "config")]
-		config_file: PathBuf,
-
-		/// Output
-		#[clap(flatten)]
-		output: Output,
-
-		/// Point size
-		#[clap(long = "point-size", default_value_t = 0.5)]
-		point_size: f64,
-	},
-
-	/// Creates a histogram of page migrations
 	#[clap(name = "page-migrations-hist")]
-	PageMigrationsHist {
-		/// Input
-		input_file: PathBuf,
+	PageMigrationsHist(PageMigrationsHist),
 
-		/// Output
-		#[clap(flatten)]
-		output: Output,
-	},
-
-	/// Creates a histogram of page migrations from multiple data
 	#[clap(name = "page-migrations-hist-multiple")]
-	PageMigrationsHistMultiple {
-		/// Input files
-		input_files: Vec<PathBuf>,
+	PageMigrationsHistMultiple(PageMigrationsHistMultiple),
 
-		/// Output
-		#[clap(flatten)]
-		output: Output,
-	},
-
-	/// Page temperature
 	#[clap(name = "page-temperature")]
-	PageTemperature {
-		/// Input
-		input_file: PathBuf,
+	PageTemperature(PageTemperature),
 
-		/// Output
-		#[clap(flatten)]
-		output: Output,
-	},
-
-	/// Page temperature density
 	#[clap(name = "page-temperature-density")]
-	PageTemperatureDensity {
-		/// Input
-		input_file: PathBuf,
+	PageTemperatureDensity(PageTemperatureDensity),
+}
 
-		/// Output
-		#[clap(flatten)]
-		output: Output,
+/// Creates a graph for page migrations
+#[derive(Debug, clap::Args)]
+pub struct PageMigrations {
+	/// Input
+	pub input_file: PathBuf,
 
-		/// Temperature exponent
-		#[clap(long = "temp-exponent", default_value_t = 1.0)]
-		temp_exponent: f64,
+	/// Config file
+	#[clap(long = "config")]
+	pub config_file: PathBuf,
 
-		/// Read weight for temperature
-		#[clap(long = "temp-read-weight", default_value_t = 1.0)]
-		#[clap(allow_hyphen_values = true)]
-		temp_read_weight: f64,
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
 
-		/// Write weight for temperature
-		#[clap(long = "temp-write-weight", default_value_t = 2.0)]
-		#[clap(allow_hyphen_values = true)]
-		temp_write_weight: f64,
-	},
+	/// Point size
+	#[clap(long = "point-size", default_value_t = 0.5)]
+	pub point_size: f64,
+}
+
+/// Creates a histogram of page migrations
+#[derive(Debug, clap::Args)]
+pub struct PageMigrationsHist {
+	/// Input
+	pub input_file: PathBuf,
+
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
+}
+
+/// Creates a histogram of page migrations from multiple data
+#[derive(Debug, clap::Args)]
+pub struct PageMigrationsHistMultiple {
+	/// Input files
+	pub input_files: Vec<PathBuf>,
+
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
+}
+
+
+/// Page temperature
+#[derive(Debug, clap::Args)]
+pub struct PageTemperature {
+	/// Input
+	pub input_file: PathBuf,
+
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
+}
+
+
+/// Page temperature density
+#[derive(Debug, clap::Args)]
+pub struct PageTemperatureDensity {
+	/// Input
+	pub input_file: PathBuf,
+
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
+
+	/// Temperature exponent
+	#[clap(long = "temp-exponent", default_value_t = 1.0)]
+	pub temp_exponent: f64,
+
+	/// Read weight for temperature
+	#[clap(long = "temp-read-weight", default_value_t = 1.0)]
+	#[clap(allow_hyphen_values = true)]
+	pub temp_read_weight: f64,
+
+	/// Write weight for temperature
+	#[clap(long = "temp-write-weight", default_value_t = 2.0)]
+	#[clap(allow_hyphen_values = true)]
+	pub temp_write_weight: f64,
 }
 
 /// Output
