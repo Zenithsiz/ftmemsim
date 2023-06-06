@@ -81,8 +81,9 @@ fn main() -> Result<(), anyhow::Error> {
 				y: usize,
 			}
 
+			// Note: We use `BTreeMap` here to ensure a consistent order across runs (for creating gifs)
 			let mut points_alloc = vec![];
-			let mut points_migrations_all = HashMap::<(usize, usize), Vec<Point>>::new();
+			let mut points_migrations_all = BTreeMap::<(usize, usize), Vec<Point>>::new();
 			for (page_ptr, page_migrations) in &data.hemem.page_migrations.migrations {
 				for page_migration in page_migrations {
 					// Get the points to add the point to.
