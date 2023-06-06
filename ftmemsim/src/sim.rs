@@ -7,6 +7,7 @@ use {
 	std::{
 		fmt,
 		io,
+		ops::Range,
 		time::{Duration, Instant},
 	},
 };
@@ -41,7 +42,7 @@ impl Simulator {
 		&mut self,
 		pin_trace_reader: &mut PinTraceReader<impl io::Read + io::Seek>,
 		classifier: &mut C,
-	) -> Result<(), anyhow::Error> {
+	) -> Result<RunOutput, anyhow::Error> {
 		// Note: We start in the past so that we output right away at the start
 		let mut last_debug_time = Instant::now() - self.debug_output_period;
 
@@ -50,8 +51,15 @@ impl Simulator {
 		let record_it = std::iter::from_fn(|| pin_trace_reader.read_next().transpose());
 
 		// Go through all records
+		let mut first_time = None;
+		let mut last_time = None;
 		for (record_idx, record_res) in record_it.enumerate().step_by(self.trace_skip + 1) {
 			let record = record_res.context("Unable to read next record")?;
+
+			// Update the first and last time.
+			// TODO: We're assuming all records are ordered by time, check when this *doesn't* happen
+			first_time.get_or_insert(record.time);
+			last_time = Some(record.time);
 
 			// Handle each trace
 			let trace = Trace { record };
@@ -71,10 +79,18 @@ impl Simulator {
 			}
 		}
 
-		Ok(())
+		Ok(RunOutput {
+			time_span: first_time.zip(last_time).map(|(first, last)| first..(last + 1)),
+		})
 	}
 }
 
+/// Output for [`Simulator::run`]
+#[derive(Clone, Debug)]
+pub struct RunOutput {
+	/// Time span
+	pub time_span: Option<Range<u64>>,
+}
 
 /// Classifier
 pub trait Classifier {

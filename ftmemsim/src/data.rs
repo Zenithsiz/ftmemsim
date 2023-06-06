@@ -1,14 +1,15 @@
 //! Output data
 
 // Imports
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::Range};
 
 /// Output data
 #[derive(Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(bincode::Encode, bincode::Decode)]
 pub struct Data {
-	pub hemem: HeMemData,
+	pub time_span: Option<Range<u64>>,
+	pub hemem:     HeMemData,
 }
 
 /// Hemem output data

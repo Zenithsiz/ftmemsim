@@ -68,13 +68,15 @@ fn main() -> Result<(), anyhow::Error> {
 			.collect(),
 	);
 
-	sim.run(&mut pin_trace_reader, &mut hemem)
+	let sim_run_output = sim
+		.run(&mut pin_trace_reader, &mut hemem)
 		.context("Unable to run simulator")?;
 
 	if let Some(output_path) = &args.output_file {
 		let hemem_statistics = hemem.statistics();
 		let data = data::Data {
-			hemem: data::HeMemData {
+			time_span: sim_run_output.time_span,
+			hemem:     data::HeMemData {
 				page_accesses:   data::PageAccesses {
 					accesses: hemem_statistics
 						.accesses()

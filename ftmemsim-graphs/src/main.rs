@@ -54,19 +54,9 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
-	// Then calculate the min/max time so we can normalize it to 0..1.
-	// Note: We do this because the time values themselves don't matter, only
-	//       the relative time.
-	// TODO: Better defaults when empty?
-	let (min_time, max_time) = data
-		.hemem
-		.page_migrations
-		.migrations
-		.iter()
-		.flat_map(|(_, page_migrations)| page_migrations.iter().map(|page_migration| page_migration.time))
-		.minmax()
-		.into_option()
-		.unwrap_or((0, 1));
+	// TODO: 0, 1 defaults are weird: We don't actually use them
+	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
+	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
 
 	// And calculate the points to display
 	struct Point {
@@ -224,15 +214,9 @@ fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::
 	// Parse the input file
 	let data = self::read_data(&cmd_args.input_file)?;
 
-	let (min_time, max_time) = data
-		.hemem
-		.page_accesses
-		.accesses
-		.iter()
-		.map(|page_access| page_access.time)
-		.minmax()
-		.into_option()
-		.unwrap_or((0, 1));
+	// TODO: 0, 1 defaults are weird: We don't actually use them
+	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
+	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
 
 	// Get all the points
 	struct Point {
@@ -318,15 +302,9 @@ fn draw_page_temperature_density(cmd_args: args::PageTemperatureDensity) -> Resu
 	// Parse the input file
 	let data = self::read_data(&cmd_args.input_file)?;
 
-	let (min_time, max_time) = data
-		.hemem
-		.page_accesses
-		.accesses
-		.iter()
-		.map(|page_access| page_access.time)
-		.minmax()
-		.into_option()
-		.unwrap_or((0, 1));
+	// TODO: 0, 1 defaults are weird: We don't actually use them
+	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
+	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
 
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
