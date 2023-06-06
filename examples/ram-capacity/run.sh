@@ -50,10 +50,10 @@ for ram_capacity in $RAM_CAPACITIES; do
 		&& \
 
 	# Finally run the graphs
-	# TODO: Run these in parallel?
 	cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
 		page-migrations \
 		"$output_file" \
+		--config "$config_file" \
 		--output "$graph_migrations_file" \
 		--output-width  "$GRAPH_OUTPUT_WIDTH" \
 		--output-height "$GRAPH_OUTPUT_HEIGHT" \
