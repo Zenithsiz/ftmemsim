@@ -30,9 +30,11 @@ pub enum SubCmd {
 	#[clap(name = "page-migrations")]
 	PageMigrations(PageMigrations),
 
+	// TODO: This is no longer a histogram, rename it?
 	#[clap(name = "page-migrations-hist")]
 	PageMigrationsHist(PageMigrationsHist),
 
+	// TODO: This is no longer a histogram, rename it?
 	#[clap(name = "page-migrations-hist-multiple")]
 	PageMigrationsHistMultiple(PageMigrationsHistMultiple),
 
