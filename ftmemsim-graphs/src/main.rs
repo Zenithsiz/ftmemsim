@@ -267,14 +267,17 @@ fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error>
 			.get(mem_idx)
 			.context("Config had less memories than input file")?;
 
-		let color_progress = mem_idx as f64 / (all_points.len() as f64 - 1.0);
+		let color_progress = match all_points.len() {
+			1 => 0.0,
+			_ => mem_idx as f64 / (all_points.len() as f64 - 1.0),
+		};
 		let color = LinSrgb::new(0.0, 1.0, 0.0).mix(LinSrgb::new(1.0, 0.0, 0.0), color_progress);
 		let color = format!("#{:x}", color.into_format::<u8>());
 
 		// Note: Since we're drawing back-to-front, we need the first points
 		//       to be larger than the last.
 		//       We also never hit 0 here due to `mem_idx` < `all_points.len()`.
-		let point_size_progress = 1.0 - ((all_points.len() - 1 - mem_idx) as f64) / all_points.len() as f64;
+		let point_size_progress = 1.0 - (all_points.len() as f64 - mem_idx as f64) / (1.0 + all_points.len() as f64);
 		let point_size = point_size_progress * cmd_args.point_size;
 
 		axes_2d.points(points.iter().map(|p| p.x), points.iter().map(|p| p.y), &[
