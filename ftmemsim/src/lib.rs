@@ -12,6 +12,6 @@ pub mod sim;
 
 // Exports
 pub use self::{
-	pin_trace::PinTraceReader,
+	pin_trace::{PinTraceReader, PinTraceWriter},
 	sim::{Classifier, Simulator},
 };

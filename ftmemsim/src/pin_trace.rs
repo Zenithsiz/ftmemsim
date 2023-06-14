@@ -3,7 +3,7 @@
 // Imports
 use {
 	anyhow::Context,
-	byteorder::{LittleEndian, ReadBytesExt},
+	byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt},
 	ftmemsim_util::ReadByteArray,
 	std::io,
 };
@@ -22,19 +22,11 @@ pub struct PinTraceReader<R> {
 }
 
 impl<R: io::Read + io::Seek> PinTraceReader<R> {
-	/// Magic
-	pub const MAGIC: [u8; 8] = *b"PINT v0\0";
-
 	/// Parses a pin trace from a reader
 	pub fn from_reader(mut reader: R) -> Result<Self, anyhow::Error> {
 		// Read the magic
 		let magic = reader.read_byte_array().context("Unable to read magic")?;
-		anyhow::ensure!(
-			magic == Self::MAGIC,
-			"Found wrong magic {:?}, expected {:?}",
-			magic,
-			Self::MAGIC
-		);
+		anyhow::ensure!(magic == MAGIC, "Found wrong magic {magic:?}, expected {MAGIC:?}",);
 
 		// Read the header
 		let header = Header::from_reader(&mut reader).context("Unable to read header")?;
@@ -43,13 +35,13 @@ impl<R: io::Read + io::Seek> PinTraceReader<R> {
 		// Get the total number of records
 		// TODO: Not have this hack here?
 		let total_records = {
-			let magic_size = Self::MAGIC.len() as u64;
+			let magic_size = MAGIC.len() as u64;
 			let header_size = Header::BYTE_SIZE as u64;
 			let record_size = Record::BYTE_SIZE as u64;
 
 
 			let total_actual_size = reader.stream_len().context("Unable to get stream length")?;
-			let total_expected_size = magic_size + header_size + header.records * record_size;
+			let total_expected_size = magic_size + header_size + dbg!(header.records) * record_size;
 			if total_actual_size != total_expected_size {
 				tracing::warn!(
 					"Pin trace size differs from expected. Found {total_actual_size}, expected {total_expected_size}"
@@ -86,6 +78,69 @@ impl<R: io::Read + io::Seek> PinTraceReader<R> {
 	}
 }
 
+/// Pin trace writer
+#[derive(Clone, Debug)]
+pub struct PinTraceWriter<W> {
+	/// Records written
+	records_written: u64,
+
+	/// Writer
+	writer: W,
+}
+
+impl<W: io::Write + io::Seek> PinTraceWriter<W> {
+	/// Creates a new writer
+	pub fn new(mut writer: W) -> Result<Self, anyhow::Error> {
+		// Write the magic
+		// Note: We rewind to ensure we write at the start, because we then
+		//       later come back to write the header
+		writer.rewind().context("Unable to rewind to start")?;
+		writer.write(&MAGIC).context("Unable to write header")?;
+
+		// Skip over the header
+		writer
+			.seek(io::SeekFrom::Current(Header::BYTE_SIZE as i64))
+			.context("Unable to seek past header")?;
+
+		Ok(Self {
+			writer,
+			records_written: 0,
+		})
+	}
+
+	/// Writes a record
+	pub fn write(&mut self, record: &Record) -> Result<(), anyhow::Error> {
+		record.to_writer(&mut self.writer).context("Unable to write record")?;
+
+		self.records_written += 1;
+		Ok(())
+	}
+
+	/// Finishes writing
+	// TODO: Accept the `rate` / `{load, store}_{misses, accesses}`?
+	pub fn finish(mut self) -> Result<W, anyhow::Error> {
+		// Rewind the writer and write the header
+		self.writer
+			.seek(io::SeekFrom::Start(MAGIC.len() as u64))
+			.context("Unable to seek to header")?;
+
+		let header = Header {
+			records:        self.records_written,
+			rate:           0,
+			load_misses:    0,
+			load_accesses:  0,
+			store_misses:   0,
+			store_accesses: 0,
+		};
+		header.to_writer(&mut self.writer).context("Unable to write header")?;
+
+		Ok(self.writer)
+	}
+}
+
+/// Magic
+pub const MAGIC: [u8; 8] = *b"PINT v0\0";
+
 /// Header
 #[derive(Clone, Copy, Debug)]
 pub struct Header {
@@ -93,19 +148,19 @@ pub struct Header {
 	records: u64,
 
 	/// Rate
-	_rate: u64,
+	rate: u64,
 
 	/// Load misses
-	_load_misses: u64,
+	load_misses: u64,
 
 	/// Load accesses
-	_load_accesses: u64,
+	load_accesses: u64,
 
 	/// Store misses
-	_store_misses: u64,
+	store_misses: u64,
 
 	/// Store accesses
-	_store_accesses: u64,
+	store_accesses: u64,
 }
 
 impl Header {
@@ -137,12 +192,40 @@ impl Header {
 
 		Ok(Self {
 			records,
-			_rate: rate,
-			_load_misses: load_misses,
-			_load_accesses: load_accesses,
-			_store_misses: store_misses,
-			_store_accesses: store_accesses,
+			rate,
+			load_misses,
+			load_accesses,
+			store_misses,
+			store_accesses,
 		})
+	}
+
+	/// Writes a header to a writer
+	pub fn to_writer<W: io::Write + io::Seek>(&self, writer: &mut W) -> Result<(), anyhow::Error> {
+		writer
+			.write_u64::<LittleEndian>(self.records)
+			.context("Unable to write reads")?;
+		writer
+			.write_u64::<LittleEndian>(self.rate)
+			.context("Unable to write rate")?;
+		writer
+			.write_u64::<LittleEndian>(self.load_misses)
+			.context("Unable to write load misses")?;
+		writer
+			.write_u64::<LittleEndian>(self.load_accesses)
+			.context("Unable to write load accesses")?;
+		writer
+			.write_u64::<LittleEndian>(self.store_misses)
+			.context("Unable to write store misses")?;
+		writer
+			.write_u64::<LittleEndian>(self.store_accesses)
+			.context("Unable to write store accesses")?;
+
+		writer
+			.seek(io::SeekFrom::Current(8))
+			.context("Unable to write padding")?;
+
+		Ok(())
 	}
 }
 
@@ -178,6 +261,25 @@ impl Record {
 		};
 
 		Ok(Self { time, addr, kind })
+	}
+
+	/// Writes a record to a writer
+	pub fn to_writer<W: io::Write + io::Seek>(&self, writer: &mut W) -> Result<(), anyhow::Error> {
+		writer
+			.write_u64::<LittleEndian>(self.time)
+			.context("Unable to write reads")?;
+
+		let kind_encoded = match self.kind {
+			RecordAccessKind::Read => 0b0,
+			RecordAccessKind::Write => 0b1,
+		};
+		let addr_with_kind = (self.addr & !0xfff) | (kind_encoded & 0xfff);
+
+		writer
+			.write_u64::<LittleEndian>(addr_with_kind)
+			.context("Unable to write rate")?;
+
+		Ok(())
 	}
 }
 
