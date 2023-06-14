@@ -161,7 +161,7 @@ pub struct Record {
 
 impl Record {
 	/// Returns the size of this record
-	pub const BYTE_SIZE: usize = 0x16;
+	pub const BYTE_SIZE: usize = 0x10;
 
 	/// Parses a record from a reader
 	pub fn from_reader<R: io::Read>(reader: &mut R) -> Result<Self, anyhow::Error> {
