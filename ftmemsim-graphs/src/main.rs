@@ -90,7 +90,7 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 			PlotOption::Caption("Page allocations"),
 			PlotOption::Color("blue"),
 			PlotOption::PointSymbol('O'),
-			PlotOption::PointSize(2.0 * cmd_args.point_size),
+			PlotOption::PointSize(1.5 * cmd_args.point_size),
 		]);
 
 	for (migration_idx, (&(prev_mem_idx, cur_mem_idx), points_migrations)) in points_migrations_all.iter().enumerate() {
