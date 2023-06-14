@@ -12,15 +12,11 @@ use {
 	args::Args,
 	clap::Parser,
 	ftmemsim_util::logger,
-	gnuplot::{AutoOption, AxesCommon, FillRegionType, PlotOption},
+	gnuplot::{AutoOption, AxesCommon, PlotOption},
 	gzp::par::decompress::ParDecompress,
 	itertools::Itertools,
 	palette::{LinSrgb, Mix},
-	std::{
-		collections::{BTreeMap, HashMap, VecDeque},
-		fs,
-		path::Path,
-	},
+	std::{collections::BTreeMap, fs, path::Path},
 };
 
 fn main() -> Result<(), anyhow::Error> {
@@ -37,7 +33,7 @@ fn main() -> Result<(), anyhow::Error> {
 		args::SubCmd::PageMigrationsHist(cmd_args) => self::draw_page_migrations_hist(cmd_args)?,
 		args::SubCmd::PageMigrationsHistMultiple(cmd_args) => self::draw_page_migrations_hist_multiple(cmd_args)?,
 		args::SubCmd::PageLocation(cmd_args) => self::draw_page_location(cmd_args)?,
-		args::SubCmd::PageTemperatureDensity(cmd_args) => self::draw_page_temperature_density(cmd_args)?,
+		args::SubCmd::PageTemperature(cmd_args) => self::draw_page_temperature(cmd_args)?,
 	}
 
 	Ok(())
@@ -300,7 +296,7 @@ fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error>
 	Ok(())
 }
 
-fn draw_page_temperature_density(cmd_args: args::PageTemperatureDensity) -> Result<(), anyhow::Error> {
+fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::Error> {
 	// Parse the input file
 	let data = self::read_data(&cmd_args.input_file)?;
 
@@ -311,73 +307,70 @@ fn draw_page_temperature_density(cmd_args: args::PageTemperatureDensity) -> Resu
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
-	// Get all the points
-	let mut cur_temps = HashMap::<u64, f64>::new();
-	let points = data
+	let max_temp = data
 		.hemem
 		.page_accesses
 		.accesses
 		.iter()
-		.map(|page_access| (page_access.page_ptr, page_access))
+		.map(|page_access| page_access.cur_temp)
+		.max()
+		.unwrap_or(0);
+
+	// Get all the points
+	struct Point {
+		x: f64,
+		y: usize,
+	}
+	let all_points = data
+		.hemem
+		.page_accesses
+		.accesses
+		.iter()
+		.map(|page_access| {
+			let time = (page_access.time - min_time) as f64 / (max_time - min_time) as f64;
+			let point = Point {
+				x: time,
+				y: *page_ptr_idxs.get(&page_access.page_ptr).expect("Page ptr had no index"),
+			};
+
+			// Note: We shrink the temperature into a `0..=255` range so we can
+			//       assign a unique color to each temperature
+			let temp_idx = (page_access.cur_temp as f64) / (max_temp as f64);
+			let temp_idx = (temp_idx * 255.0) as u8;
+
+			(temp_idx, point)
+		})
 		.into_group_map()
 		.into_iter()
-		.map(|(page_ptr, page_accesses)| {
-			// Note: The page accesses will already be sorted by time
-			let mut temps = page_accesses
-				.into_iter()
-				.map(|page_access| {
-					let cur_temp = cur_temps.entry(page_ptr).or_insert(0.0);
-					match page_access.kind {
-						ftmemsim::data::PageAccessKind::Read => *cur_temp += cmd_args.temp_read_weight,
-						ftmemsim::data::PageAccessKind::Write => *cur_temp += cmd_args.temp_write_weight,
-					};
-
-					let time = (page_access.time - min_time) as f64 / (max_time - min_time) as f64;
-					(time, *cur_temp)
-				})
-				.collect::<VecDeque<_>>();
-
-			// Add a temperature at the start and end to ensure that all rectangles are drawn from both ends
-			let last_temp = temps.back().map_or(0.0, |&(_, temp)| temp);
-			temps.push_front((0.0, 0.0));
-			temps.push_back((1.0, last_temp));
-
-			(page_ptr, temps)
-		})
 		.collect::<BTreeMap<_, _>>();
-
-	let max_temp = points
-		.values()
-		.flat_map(|temps| temps.iter().map(|&(_, temp)| temp))
-		.max_by(f64::total_cmp)
-		.unwrap_or(0.0);
 
 	// Finally create and save the plot
 	let mut fg = gnuplot::Figure::new();
-	let fg_axes2d: &mut gnuplot::Axes2D = fg.axes2d();
-	for (&page_ptr, temps) in &points {
-		let page_ptr_idx = *page_ptr_idxs.get(&page_ptr).expect("Page ptr had no index");
+	let fg_axes2d = fg.axes2d();
 
-		for ((prev_time, prev_temp), (cur_time, cur_temp)) in temps.iter().copied().tuple_windows() {
-			let progress = (prev_temp + cur_temp) / (2.0 * max_temp);
-			let progress = progress.powf(cmd_args.temp_exponent);
+	for (&temp_idx, points) in all_points.iter().rev() {
+		let color_progress = temp_idx as f64 / 255.0;
+		let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), color_progress);
+		let color = format!("#{:x}", color.into_format::<u8>());
 
-			let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), progress);
-			let color = format!("#{:x}", color.into_format::<u8>());
+		let point_size_progress = (1.0 + temp_idx as f64) / 256.0;
+		let point_size = point_size_progress * cmd_args.point_size;
 
-			fg_axes2d.fill_between([prev_time, cur_time], [page_ptr_idx; 2], [page_ptr_idx + 1; 2], &[
-				PlotOption::Color(&color),
-				PlotOption::FillAlpha(1.0),
-				PlotOption::FillRegion(FillRegionType::Below),
-			]);
-		}
+		fg_axes2d.points(points.iter().map(|p| p.x), points.iter().map(|p| p.y), &[
+			PlotOption::Color(&color),
+			PlotOption::PointSymbol('O'),
+			PlotOption::PointSize(point_size),
+		]);
 	}
 
+	// TODO: Get the color bar to show up?
 	fg_axes2d
 		.set_x_label("Time (normalized)", &[])
 		.set_y_label("Page (indexed)", &[])
+		.set_cb_label("Temperature", &[])
 		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
-		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
+		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64))
+		.set_cb_range(AutoOption::Fix(0.0), AutoOption::Fix(max_temp as f64));
 
 	// Then output the plot
 	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;

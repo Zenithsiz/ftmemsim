@@ -17,9 +17,10 @@ OUTPUT_FILE="resources/data/output.bin.gz"
 
 CONFIG="config.json"
 
-GRAPH_OUTPUT_WIDTH=$((8000))
-GRAPH_OUTPUT_HEIGHT=$((1000))
+GRAPH_OUTPUT_WIDTH="4000"
+GRAPH_OUTPUT_HEIGHT="2250"
 GRAPH_OUTPUT_FORMAT="png"
+GRAPH_POINT_SIZE="2.0"
 
 rm -rf "$LOG_FILE"
 
@@ -43,6 +44,7 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--output "resources/data/page_migrations.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--point-size "$GRAPH_POINT_SIZE" \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
@@ -64,43 +66,18 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--output "resources/data/page_location.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--point-size "$GRAPH_POINT_SIZE" \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
-	page-temperature-density \
+	page-temperature \
 	"$OUTPUT_FILE" \
-	--output "resources/data/page_temperature_density.$GRAPH_OUTPUT_FORMAT" \
+	--output "resources/data/page_temperature.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
-	--temp-exponent "0.15" \
-	--temp-read-weight "1.0" \
-	--temp-write-weight "2.0" \
-	&
-
-cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
-	page-temperature-density \
-	"$OUTPUT_FILE" \
-	--output "resources/data/page_temperature_density.read.$GRAPH_OUTPUT_FORMAT" \
-	--output-width  "$GRAPH_OUTPUT_WIDTH" \
-	--output-height "$GRAPH_OUTPUT_HEIGHT" \
-	--temp-exponent "0.15" \
-	--temp-write-weight "0.0" \
-	&
-
-cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
-	page-temperature-density \
-	"$OUTPUT_FILE" \
-	--output "resources/data/page_temperature_density.write.$GRAPH_OUTPUT_FORMAT" \
-	--output-width  "$GRAPH_OUTPUT_WIDTH" \
-	--output-height "$GRAPH_OUTPUT_HEIGHT" \
-	--temp-exponent "0.15" \
-	--temp-read-weight "0.0" \
+	--point-size "$GRAPH_POINT_SIZE" \
 	&
 
 wait

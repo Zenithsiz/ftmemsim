@@ -41,8 +41,8 @@ pub enum SubCmd {
 	#[clap(name = "page-location")]
 	PageLocation(PageLocation),
 
-	#[clap(name = "page-temperature-density")]
-	PageTemperatureDensity(PageTemperatureDensity),
+	#[clap(name = "page-temperature")]
+	PageTemperature(PageTemperature),
 }
 
 /// Creates a graph for page migrations
@@ -107,9 +107,9 @@ pub struct PageLocation {
 }
 
 
-/// Page temperature density
+/// Page temperature
 #[derive(Debug, clap::Args)]
-pub struct PageTemperatureDensity {
+pub struct PageTemperature {
 	/// Input
 	pub input_file: PathBuf,
 
@@ -117,19 +117,9 @@ pub struct PageTemperatureDensity {
 	#[clap(flatten)]
 	pub output: Output,
 
-	/// Temperature exponent
-	#[clap(long = "temp-exponent", default_value_t = 1.0)]
-	pub temp_exponent: f64,
-
-	/// Read weight for temperature
-	#[clap(long = "temp-read-weight", default_value_t = 1.0)]
-	#[clap(allow_hyphen_values = true)]
-	pub temp_read_weight: f64,
-
-	/// Write weight for temperature
-	#[clap(long = "temp-write-weight", default_value_t = 2.0)]
-	#[clap(allow_hyphen_values = true)]
-	pub temp_write_weight: f64,
+	/// Point size
+	#[clap(long = "point-size", default_value_t = 0.5)]
+	pub point_size: f64,
 }
 
 /// Output
