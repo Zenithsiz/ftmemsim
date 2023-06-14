@@ -318,11 +318,13 @@ fn draw_page_temperature_density(cmd_args: args::PageTemperatureDensity) -> Resu
 		.page_accesses
 		.accesses
 		.iter()
-		.group_by(|page_access| page_access.page_ptr)
+		.map(|page_access| (page_access.page_ptr, page_access))
+		.into_group_map()
 		.into_iter()
 		.map(|(page_ptr, page_accesses)| {
 			// Note: The page accesses will already be sorted by time
 			let mut temps = page_accesses
+				.into_iter()
 				.map(|page_access| {
 					let cur_temp = cur_temps.entry(page_ptr).or_insert(0.0);
 					match page_access.kind {
