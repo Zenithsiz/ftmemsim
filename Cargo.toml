@@ -2,7 +2,13 @@
 [workspace]
 
 resolver = "2"
-members = ["ftmemsim", "ftmemsim-util", "ftmemsim-graphs", "util/parse-lackey"]
+members = [
+	"ftmemsim",
+	"ftmemsim-util",
+	"ftmemsim-graphs",
+	"util/parse-lackey",
+	"examples/simple-rw",
+]
 
 [workspace.dependencies]
 
