@@ -260,7 +260,7 @@ fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error>
 	let mut fg = gnuplot::Figure::new();
 	let axes_2d = fg.axes2d();
 
-	for (&mem_idx, points) in &all_points {
+	for (&mem_idx, points) in all_points.iter().rev() {
 		let mem = config
 			.hemem
 			.memories
@@ -274,7 +274,7 @@ fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error>
 		// Note: Since we're drawing back-to-front, we need the first points
 		//       to be larger than the last.
 		//       We also never hit 0 here due to `mem_idx` < `all_points.len()`.
-		let point_size_progress = 1.0 - mem_idx as f64 / all_points.len() as f64;
+		let point_size_progress = 1.0 - ((all_points.len() - 1 - mem_idx) as f64) / all_points.len() as f64;
 		let point_size = point_size_progress * cmd_args.point_size;
 
 		axes_2d.points(points.iter().map(|p| p.x), points.iter().map(|p| p.y), &[
