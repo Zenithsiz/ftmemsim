@@ -15,12 +15,12 @@ GRAPH_OUTPUT_HEIGHT=$((1000))
 GRAPH_OUTPUT_FORMAT="png"
 
 # Ram capacities to test
-RAM_CAPACITIES="250 375 500 625 750 875 1000 1125 1250 1375 1500 1625 1750 1875 2000 2125 2250 2375 2500 2625 2750 2875 3000 3125 3250 3375 3500 3625 3750 3875 4000 4125 4250 4375 4500"
-
+RAM_CAPACITIES=$(seq -s " " 200 250 4500)
 
 
 # Build everything before-hand
 cargo build --profile "$PROFILE" -p ftmemsim -p ftmemsim-graphs
+mkdir -p config output graphs
 
 # Simulate all configs and then generate the graphs
 pids=""
@@ -66,7 +66,7 @@ done
 wait $pids
 printf "Finished simulating\n"
 
-printf "Generating `page-migrations-hist-multiple` graph for $outputs_files"
+printf "Generating \`page-migrations-hist-multiple\` graph for $outputs_files"
 graph_migrations_hist_file="graphs/migrations-hist.$GRAPH_OUTPUT_FORMAT"
 cargo run -q --profile "$PROFILE" -p ftmemsim-graphs -- \
 	page-migrations-hist-multiple \
