@@ -2,8 +2,7 @@
 [workspace]
 
 resolver = "2"
-members = ["ftmemsim", "ftmemsim-util", "ftmemsim-graphs"]
-
+members = ["ftmemsim", "ftmemsim-util", "ftmemsim-graphs", "util/parse-lackey"]
 
 [workspace.dependencies]
 
