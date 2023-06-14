@@ -97,7 +97,7 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 			PlotOption::PointSize(2.0 * cmd_args.point_size),
 		]);
 
-	for ((prev_mem_idx, cur_mem_idx), points_migrations) in points_migrations_all {
+	for (migration_idx, (&(prev_mem_idx, cur_mem_idx), points_migrations)) in points_migrations_all.iter().enumerate() {
 		// Calculate the color for these migrations
 		// Note: We use the red to dictate the current memory and green for the previous,
 		//       this is to a greener color indicates a positive migration, while a redder
@@ -122,6 +122,11 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 			.get(cur_mem_idx)
 			.context("Config had less memories than input file")?;
 
+		// Note: Since we're drawing back-to-front, we need the first points
+		//       to be larger than the last.
+		//       We also never hit 0 here due to `migration_idx` < `points_migrations_all.len()`.
+		let point_scale = 1.0 - migration_idx as f64 / points_migrations_all.len() as f64;
+
 		fg_axes2d.points(
 			points_migrations.iter().map(|p| p.x),
 			points_migrations.iter().map(|p| p.y),
@@ -129,7 +134,7 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 				PlotOption::Caption(&format!("Page migrations ({} to {})", prev_mem.name, cur_mem.name)),
 				PlotOption::Color(&color),
 				PlotOption::PointSymbol('O'),
-				PlotOption::PointSize(cmd_args.point_size),
+				PlotOption::PointSize(point_scale * cmd_args.point_size),
 			],
 		);
 	}
