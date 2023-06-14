@@ -17,7 +17,6 @@ use {
 	self::memories::MemIdx,
 	crate::{pin_trace, sim},
 	anyhow::Context,
-	itertools::Itertools,
 	std::fmt,
 };
 
@@ -301,56 +300,6 @@ impl sim::Classifier for HeMem {
 			writeln!(
 				f,
 				"Memory {name} ({mem_idx:?}): {len} / {capacity} ({occupancy_percentage:.2}%)"
-			)?;
-		}
-
-		{
-			let total_accesses = self.statistics.accesses().len();
-			writeln!(f, "Total accesses: {total_accesses}")?;
-
-			let average_prev_temperature = self
-				.statistics
-				.accesses()
-				.iter()
-				.map(|access| access.prev_temperature as f64)
-				.collect::<average::Variance>();
-
-			let average_cur_temperature = self
-				.statistics
-				.accesses()
-				.iter()
-				.map(|access| access.cur_temperature as f64)
-				.collect::<average::Variance>();
-
-			writeln!(
-				f,
-				"Average temperature: {:.4} ± {:.4} (Prev), {:.4} ± {:.4} (Cur)",
-				average_prev_temperature.mean(),
-				average_prev_temperature.error(),
-				average_cur_temperature.mean(),
-				average_cur_temperature.error()
-			)?;
-
-			let average_page_migrations = self
-				.statistics
-				.page_migrations()
-				.iter()
-				.map(|(_, migrations)| migrations.len() as f64)
-				.collect::<average::Variance>();
-			let (min_page_migrations, max_page_migrations) = self
-				.statistics
-				.page_migrations()
-				.iter()
-				.map(|(_, migrations)| migrations.len() as f64)
-				.minmax()
-				.into_option()
-				.unwrap_or((f64::NEG_INFINITY, f64::INFINITY));
-
-			writeln!(
-				f,
-				"Average page migrations: {:.4} ± {:.4} ({min_page_migrations:.2}..{max_page_migrations:.2})",
-				average_page_migrations.mean(),
-				average_page_migrations.error()
 			)?;
 		}
 
