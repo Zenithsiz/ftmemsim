@@ -1,9 +1,12 @@
 # Rust
-/target
+target/
 
 # Resources
 /resources
 
 # Logs
-/logs
+logs/
 *.log
+
+# Traces
+*.trace
