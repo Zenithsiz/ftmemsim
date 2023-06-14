@@ -38,8 +38,8 @@ pub enum SubCmd {
 	#[clap(name = "page-migrations-hist-multiple")]
 	PageMigrationsHistMultiple(PageMigrationsHistMultiple),
 
-	#[clap(name = "page-temperature")]
-	PageTemperature(PageTemperature),
+	#[clap(name = "page-location")]
+	PageLocation(PageLocation),
 
 	#[clap(name = "page-temperature-density")]
 	PageTemperatureDensity(PageTemperatureDensity),
@@ -87,15 +87,23 @@ pub struct PageMigrationsHistMultiple {
 }
 
 
-/// Page temperature
+/// Page location
 #[derive(Debug, clap::Args)]
-pub struct PageTemperature {
+pub struct PageLocation {
 	/// Input
 	pub input_file: PathBuf,
+
+	/// Config file
+	#[clap(long = "config")]
+	pub config_file: PathBuf,
 
 	/// Output
 	#[clap(flatten)]
 	pub output: Output,
+
+	/// Point size
+	#[clap(long = "point-size", default_value_t = 0.5)]
+	pub point_size: f64,
 }
 
 

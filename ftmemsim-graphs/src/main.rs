@@ -12,7 +12,7 @@ use {
 	args::Args,
 	clap::Parser,
 	ftmemsim_util::logger,
-	gnuplot::{AutoOption, AxesCommon, DashType, FillRegionType, PlotOption},
+	gnuplot::{AutoOption, AxesCommon, FillRegionType, PlotOption},
 	gzp::par::decompress::ParDecompress,
 	itertools::Itertools,
 	palette::{LinSrgb, Mix},
@@ -36,7 +36,7 @@ fn main() -> Result<(), anyhow::Error> {
 		args::SubCmd::PageMigrations(cmd_args) => self::draw_page_migrations(&cmd_args)?,
 		args::SubCmd::PageMigrationsHist(cmd_args) => self::draw_page_migrations_hist(cmd_args)?,
 		args::SubCmd::PageMigrationsHistMultiple(cmd_args) => self::draw_page_migrations_hist_multiple(cmd_args)?,
-		args::SubCmd::PageTemperature(cmd_args) => self::draw_page_temperature(cmd_args)?,
+		args::SubCmd::PageLocation(cmd_args) => self::draw_page_location(cmd_args)?,
 		args::SubCmd::PageTemperatureDensity(cmd_args) => self::draw_page_temperature_density(cmd_args)?,
 	}
 
@@ -125,7 +125,8 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 		// Note: Since we're drawing back-to-front, we need the first points
 		//       to be larger than the last.
 		//       We also never hit 0 here due to `migration_idx` < `points_migrations_all.len()`.
-		let point_scale = 1.0 - migration_idx as f64 / points_migrations_all.len() as f64;
+		let point_size_progress = 1.0 - migration_idx as f64 / points_migrations_all.len() as f64;
+		let point_size = point_size_progress * cmd_args.point_size;
 
 		fg_axes2d.points(
 			points_migrations.iter().map(|p| p.x),
@@ -134,7 +135,7 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 				PlotOption::Caption(&format!("Page migrations ({} to {})", prev_mem.name, cur_mem.name)),
 				PlotOption::Color(&color),
 				PlotOption::PointSymbol('O'),
-				PlotOption::PointSize(point_scale * cmd_args.point_size),
+				PlotOption::PointSize(point_size),
 			],
 		);
 	}
@@ -215,9 +216,16 @@ fn draw_page_migrations_hist_multiple(cmd_args: args::PageMigrationsHistMultiple
 	Ok(())
 }
 
-fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::Error> {
-	// Parse the input file
-	let data = self::read_data(&cmd_args.input_file)?;
+/// Draws the page location graph
+fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error> {
+	// Parse the config and input file
+	let config = self::read_config(&cmd_args.config_file)
+		.with_context(|| format!("Unable to read config file: {:?}", cmd_args.config_file))?;
+	let data = self::read_data(&cmd_args.input_file)
+		.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
+
+	// Then index the page pointers.
+	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
 	// TODO: 0, 1 defaults are weird: We don't actually use them
 	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
@@ -225,77 +233,63 @@ fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::
 
 	// Get all the points
 	struct Point {
-		x:             f64,
-		y_avg:         f64,
-		y_err:         f64,
-		global_cooled: bool,
+		x: f64,
+		y: usize,
 	}
-	let mut cur_temps = HashMap::new();
-	let points = data
+	let all_points = data
 		.hemem
 		.page_accesses
 		.accesses
 		.iter()
-		.map(|page_access| {
-			// Update the temperatures
-			// TODO: Optimize global cooling?
-			*cur_temps.entry(page_access.page_ptr).or_insert(0) = page_access.prev_temp;
-			if page_access.caused_cooling {
-				for temp in cur_temps.values_mut() {
-					*temp /= 2;
-				}
-			}
-
-			// TODO: Optimize this with a moving average?
-			let average_temp = &cur_temps
-				.values()
-				.map(|&temp| temp as f64)
-				.collect::<average::Variance>();
-			Point {
-				x:             (page_access.time - min_time) as f64 / (max_time - min_time) as f64,
-				y_avg:         average_temp.mean(),
-				y_err:         average_temp.error(),
-				global_cooled: page_access.caused_cooling,
-			}
+		.map(|page_access| (page_access.mem_idx, page_access))
+		.into_group_map()
+		.into_iter()
+		.map(|(mem_idx, page_accesses)| {
+			let points = page_accesses
+				.into_iter()
+				.map(|page_access| Point {
+					x: (page_access.time - min_time) as f64 / (max_time - min_time) as f64,
+					y: *page_ptr_idxs.get(&page_access.page_ptr).expect("Page ptr had no index"),
+				})
+				.collect::<Vec<_>>();
+			(mem_idx, points)
 		})
 		.collect::<Vec<_>>();
 
-	let max_y = points.iter().map(|p| p.y_avg).max_by(f64::total_cmp).unwrap_or(0.0);
-
 	// Finally create and save the plot
 	let mut fg = gnuplot::Figure::new();
-	fg.axes2d()
-		.boxes_set_width(
-			points.iter().map(|p| p.x),
-			points.iter().map(|p| if p.global_cooled { max_y } else { 0.0 }),
-			(0..points.len()).map(|_| 0.1 / (points.len() as f64)),
-			&[
-				PlotOption::Caption("Global cooling"),
-				PlotOption::Color("red"),
-				PlotOption::LineWidth(0.1),
-			],
-		)
-		.lines(points.iter().map(|p| p.x), points.iter().map(|p| p.y_avg), &[
-			PlotOption::Caption("Page migrations (Avg)"),
-			PlotOption::Color("black"),
-			PlotOption::LineStyle(DashType::Solid),
-			PlotOption::LineWidth(1.0),
-		])
-		.fill_between(
-			points.iter().map(|p| p.x),
-			points.iter().map(|p| p.y_avg - p.y_err),
-			points.iter().map(|p| p.y_avg + p.y_err),
-			&[
-				PlotOption::Caption("Page migrations (Error)"),
-				PlotOption::Color("green"),
-				PlotOption::FillAlpha(0.3),
-				PlotOption::FillRegion(FillRegionType::Below),
-			],
-		)
+	let axes_2d = fg.axes2d();
+
+	for (points_idx, &(mem_idx, ref points)) in all_points.iter().enumerate() {
+		let mem = config
+			.hemem
+			.memories
+			.get(mem_idx)
+			.context("Config had less memories than input file")?;
+
+		let color_progress = points_idx as f64 / (all_points.len() as f64 - 1.0);
+		let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), color_progress);
+		let color = format!("#{:x}", color.into_format::<u8>());
+
+		// Note: Since we're drawing back-to-front, we need the first points
+		//       to be larger than the last.
+		//       We also never hit 0 here due to `points_idx` < `all_points.len()`.
+		let point_size_progress = 1.0 - points_idx as f64 / all_points.len() as f64;
+		let point_size = point_size_progress * cmd_args.point_size;
+
+		axes_2d.points(points.iter().map(|p| p.x), points.iter().map(|p| p.y), &[
+			PlotOption::Caption(&format!("Page location {mem_idx:?} ({})", mem.name)),
+			PlotOption::Color(&color),
+			PlotOption::PointSymbol('O'),
+			PlotOption::PointSize(point_size),
+		]);
+	}
+
+	axes_2d
 		.set_x_label("Time (normalized)", &[])
-		.set_y_label("Temperature", &[])
+		.set_y_label("Page (indexed)", &[])
 		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
-		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(max_y));
+		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 	// Then output the plot
 	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;

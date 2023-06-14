@@ -58,9 +58,10 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
-	page-temperature \
+	page-location \
 	"$OUTPUT_FILE" \
-	--output "resources/data/page_temperature.$GRAPH_OUTPUT_FORMAT" \
+	--config "$CONFIG" \
+	--output "resources/data/page_location.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
 	&
