@@ -86,6 +86,17 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--log-file-append \
 	--log-file "$LOG_FILE" \
+	page-temperature-avg \
+	"$OUTPUT_FILE" \
+	--output "resources/data/page_temperature_avg.$GRAPH_OUTPUT_FORMAT" \
+	--output-width  "$GRAPH_OUTPUT_WIDTH" \
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--point-size "$GRAPH_POINT_SIZE" \
+	&
+
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
 	memory-occupancy \
 	"$OUTPUT_FILE" \
 	--config "$CONFIG" \

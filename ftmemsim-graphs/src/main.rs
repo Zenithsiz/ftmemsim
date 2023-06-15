@@ -34,6 +34,7 @@ fn main() -> Result<(), anyhow::Error> {
 		args::SubCmd::PageMigrationsHistMultiple(cmd_args) => self::draw_page_migrations_hist_multiple(cmd_args)?,
 		args::SubCmd::PageLocation(cmd_args) => self::draw_page_location(cmd_args)?,
 		args::SubCmd::PageTemperature(cmd_args) => self::draw_page_temperature(cmd_args)?,
+		args::SubCmd::PageTemperatureAvg(cmd_args) => self::draw_page_temperature_avg(cmd_args)?,
 		args::SubCmd::MemoryOccupancy(cmd_args) => self::draw_memory_occupancy(cmd_args)?,
 	}
 
@@ -363,6 +364,72 @@ fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::
 		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
 		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64))
 		.set_cb_range(AutoOption::Fix(0.0), AutoOption::Fix(max_temp as f64));
+
+	// Then output the plot
+	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
+
+	Ok(())
+}
+
+fn draw_page_temperature_avg(cmd_args: args::PageTemperatureAvg) -> Result<(), anyhow::Error> {
+	// Parse the input file
+	let data = self::read_data(&cmd_args.input_file)?;
+
+	// Then index the page pointers.
+	let page_ptr_idxs = self::page_ptr_idxs(&data);
+
+	let max_temp = data
+		.hemem
+		.page_accesses
+		.accesses
+		.iter()
+		.map(|page_access| page_access.cur_temp)
+		.max()
+		.unwrap_or(0);
+
+	// Get all the points
+	struct Point {
+		page_indexed: usize,
+		temp_avg:     f64,
+		temp_err:     f64,
+	}
+	let points = data
+		.hemem
+		.page_accesses
+		.accesses
+		.iter()
+		.map(|page_access| (page_access.page_ptr, page_access))
+		.into_group_map()
+		.into_iter()
+		.map(|(page_ptr, page_access)| {
+			let temp_mean = page_access
+				.iter()
+				.map(|page_access| page_access.cur_temp as f64)
+				.collect::<average::Variance>();
+
+			Point {
+				page_indexed: *page_ptr_idxs.get(&page_ptr).expect("Page ptr had no index"),
+				temp_avg:     temp_mean.mean(),
+				temp_err:     temp_mean.error(),
+			}
+		})
+		.sorted_by_key(|p| p.page_indexed)
+		.collect::<Vec<_>>();
+
+	// Finally create and save the plot
+	// TODO: Replace with bars?
+	let mut fg = gnuplot::Figure::new();
+	fg.axes2d()
+		.x_error_lines(
+			points.iter().map(|p| p.temp_avg),
+			points.iter().map(|p| p.page_indexed),
+			points.iter().map(|p| p.temp_err),
+			&[],
+		)
+		.set_x_label("Temperature", &[])
+		.set_y_label("Page (indexed)", &[])
+		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(max_temp as f64))
+		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 	// Then output the plot
 	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;

@@ -43,6 +43,9 @@ pub enum SubCmd {
 	#[clap(name = "page-temperature")]
 	PageTemperature(PageTemperature),
 
+	#[clap(name = "page-temperature-avg")]
+	PageTemperatureAvg(PageTemperatureAvg),
+
 	#[clap(name = "memory-occupancy")]
 	MemoryOccupancy(MemoryOccupancy),
 }
@@ -112,6 +115,21 @@ pub struct PageLocation {
 /// Page temperature
 #[derive(Debug, clap::Args)]
 pub struct PageTemperature {
+	/// Input
+	pub input_file: PathBuf,
+
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
+
+	/// Point size
+	#[clap(long = "point-size", default_value_t = 0.5)]
+	pub point_size: f64,
+}
+
+/// Page temperature (average)
+#[derive(Debug, clap::Args)]
+pub struct PageTemperatureAvg {
 	/// Input
 	pub input_file: PathBuf,
 
