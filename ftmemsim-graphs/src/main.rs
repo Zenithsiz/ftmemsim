@@ -51,10 +51,6 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
-	// TODO: 0, 1 defaults are weird: We don't actually use them
-	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
-	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
-
 	// And calculate the points to display
 	struct Point {
 		x: f64,
@@ -77,7 +73,7 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 			};
 
 			points.push(Point {
-				x: (page_migration.time - min_time) as f64 / (max_time - min_time) as f64,
+				x: self::date_normalized(page_migration.time, &data),
 				y: *page_ptr_idxs.get(page_ptr).expect("Page ptr had no index"),
 			});
 		}
@@ -228,10 +224,6 @@ fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error>
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
-	// TODO: 0, 1 defaults are weird: We don't actually use them
-	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
-	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
-
 	// Get all the points
 	struct Point {
 		x: f64,
@@ -249,7 +241,7 @@ fn draw_page_location(cmd_args: args::PageLocation) -> Result<(), anyhow::Error>
 			let points = page_accesses
 				.into_iter()
 				.map(|page_access| Point {
-					x: (page_access.time - min_time) as f64 / (max_time - min_time) as f64,
+					x: self::date_normalized(page_access.time, &data),
 					y: *page_ptr_idxs.get(&page_access.page_ptr).expect("Page ptr had no index"),
 				})
 				.collect::<Vec<_>>();
@@ -305,10 +297,6 @@ fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::
 	// Parse the input file
 	let data = self::read_data(&cmd_args.input_file)?;
 
-	// TODO: 0, 1 defaults are weird: We don't actually use them
-	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
-	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
-
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
@@ -332,9 +320,8 @@ fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::
 		.accesses
 		.iter()
 		.map(|page_access| {
-			let time = (page_access.time - min_time) as f64 / (max_time - min_time) as f64;
 			let point = Point {
-				x: time,
+				x: self::date_normalized(page_access.time, &data),
 				y: *page_ptr_idxs.get(&page_access.page_ptr).expect("Page ptr had no index"),
 			};
 
@@ -390,10 +377,6 @@ fn draw_memory_occupancy(cmd_args: args::MemoryOccupancy) -> Result<(), anyhow::
 	let data = self::read_data(&cmd_args.input_file)
 		.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
 
-	// TODO: 0, 1 defaults are weird: We don't actually use them
-	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
-	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
-
 	// Calculate all the occupancies over time
 	let mut memories_occupancy = (0..config.hemem.memories.len())
 		.map(|mem_idx| (mem_idx, 0_usize))
@@ -412,8 +395,6 @@ fn draw_memory_occupancy(cmd_args: args::MemoryOccupancy) -> Result<(), anyhow::
 		.group_by(|migration| migration.time)
 		.into_iter()
 		.flat_map(|(time, migrations)| {
-			let time = (time - min_time) as f64 / (max_time - min_time) as f64;
-
 			// Updates the occupancy of a memory by `delta`.
 			// Panics if the occupancy would be negative or above `usize::MAX`.
 			let mut update_occupancy = |mem_idx, delta| {
@@ -425,7 +406,7 @@ fn draw_memory_occupancy(cmd_args: args::MemoryOccupancy) -> Result<(), anyhow::
 					.checked_add_signed(delta)
 					.expect("Memory occupancy was negative / above `usize::MAX`");
 
-				(mem_idx, (time, *occupancy))
+				(mem_idx, (self::date_normalized(time, &data), *occupancy))
 			};
 
 			// Process all migrations in this time step
@@ -483,6 +464,18 @@ fn draw_memory_occupancy(cmd_args: args::MemoryOccupancy) -> Result<(), anyhow::
 	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
 
 	Ok(())
+}
+
+/// Calculates a date normalized
+///
+/// Panics if there is no time span.
+fn date_normalized(time: u64, data: &ftmemsim::data::Data) -> f64 {
+	let time_span = data.time_span.as_ref().expect("Data had no time span");
+	let min_time = time_span.start;
+	let max_time = time_span.end.checked_sub(1).expect("Max time was `0`");
+	assert!(min_time < max_time, "Data duration was 0 or less");
+
+	(time - min_time) as f64 / (max_time - min_time) as f64
 }
 
 /// Computes the data to use fr the `page-migrations-hist` graph
