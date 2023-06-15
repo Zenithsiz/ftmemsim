@@ -380,15 +380,6 @@ fn draw_page_temperature_avg(cmd_args: args::PageTemperatureAvg) -> Result<(), a
 	// Then index the page pointers.
 	let page_ptr_idxs = self::page_ptr_idxs(&data);
 
-	let max_temp = data
-		.hemem
-		.page_accesses
-		.accesses
-		.iter()
-		.map(|page_access| page_access.cur_temp)
-		.max()
-		.unwrap_or(0);
-
 	// Get all the points
 	struct Point {
 		page_indexed: usize,
@@ -418,6 +409,12 @@ fn draw_page_temperature_avg(cmd_args: args::PageTemperatureAvg) -> Result<(), a
 		.sorted_by_key(|p| p.page_indexed)
 		.collect::<Vec<_>>();
 
+	let max_avg_temp = points
+		.iter()
+		.map(|p| p.temp_avg + p.temp_err)
+		.max_by(f64::total_cmp)
+		.unwrap_or(0.0);
+
 	// Finally create and save the plot
 	// TODO: Replace with bars?
 	let mut fg = gnuplot::Figure::new();
@@ -434,7 +431,7 @@ fn draw_page_temperature_avg(cmd_args: args::PageTemperatureAvg) -> Result<(), a
 		)
 		.set_x_label("Temperature", &[])
 		.set_y_label("Page (indexed)", &[])
-		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(max_temp as f64))
+		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(max_avg_temp))
 		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64));
 
 	// Then output the plot
