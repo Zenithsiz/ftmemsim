@@ -161,8 +161,10 @@ fn draw_page_migrations_hist(cmd_args: args::PageMigrationsHist) -> Result<(), a
 			PlotOption::Caption("Migration count"),
 			PlotOption::Color("black"),
 		])
-		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(data.len() as f64))
-		.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
+		.set_x_log(Some(10.0))
+		.set_y_log(Some(10.0))
+		.set_x_range(AutoOption::Fix(1.0), AutoOption::Fix(data.len() as f64))
+		.set_y_range(AutoOption::Fix(1.0), AutoOption::Auto)
 		.set_x_label("Migrations (flattened)", &[])
 		.set_y_label("Migrations", &[]);
 
@@ -202,8 +204,10 @@ fn draw_page_migrations_hist_multiple(cmd_args: args::PageMigrationsHistMultiple
 
 	// Finally finish building the graph
 	fg_axes2d
-		.set_x_range(AutoOption::Fix(0.0), AutoOption::Auto)
-		.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto)
+		.set_x_log(Some(10.0))
+		.set_y_log(Some(10.0))
+		.set_x_range(AutoOption::Fix(1.0), AutoOption::Auto)
+		.set_y_range(AutoOption::Fix(1.0), AutoOption::Auto)
 		.set_x_label("Migrations (flattened)", &[])
 		.set_y_label("Migrations", &[]);
 
