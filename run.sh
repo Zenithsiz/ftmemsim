@@ -24,6 +24,7 @@ GRAPH_OUTPUT_WIDTH="4000"
 GRAPH_OUTPUT_HEIGHT="2250"
 GRAPH_OUTPUT_FORMAT="png"
 GRAPH_POINT_SIZE="2.0"
+GRAPH_LINE_WIDTH="4.0"
 
 rm -rf "$LOG_FILE"
 
@@ -58,6 +59,7 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--output "resources/data/page_migrations_hist.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--line-width "$GRAPH_LINE_WIDTH" \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
@@ -91,7 +93,7 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--output "resources/data/page_temperature_avg.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
-	--point-size "$GRAPH_POINT_SIZE" \
+	--line-width "$GRAPH_LINE_WIDTH" \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
@@ -103,6 +105,7 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--output "resources/data/memory_occupancy.$GRAPH_OUTPUT_FORMAT" \
 	--output-width  "$GRAPH_OUTPUT_WIDTH" \
 	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	--line-width "$GRAPH_LINE_WIDTH" \
 	&
 
 wait

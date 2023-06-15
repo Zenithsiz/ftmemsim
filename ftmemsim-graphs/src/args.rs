@@ -78,6 +78,10 @@ pub struct PageMigrationsHist {
 	/// Output
 	#[clap(flatten)]
 	pub output: Output,
+
+	/// Line width
+	#[clap(long = "line-width", default_value_t = 1.0)]
+	pub line_width: f64,
 }
 
 /// Creates a histogram of page migrations from multiple data
@@ -89,6 +93,10 @@ pub struct PageMigrationsHistMultiple {
 	/// Output
 	#[clap(flatten)]
 	pub output: Output,
+
+	/// Line width
+	#[clap(long = "line-width", default_value_t = 1.0)]
+	pub line_width: f64,
 }
 
 
@@ -137,9 +145,9 @@ pub struct PageTemperatureAvg {
 	#[clap(flatten)]
 	pub output: Output,
 
-	/// Point size
-	#[clap(long = "point-size", default_value_t = 0.5)]
-	pub point_size: f64,
+	/// Line width
+	#[clap(long = "line-width", default_value_t = 1.0)]
+	pub line_width: f64,
 }
 
 /// Memory Occupancy
@@ -155,6 +163,10 @@ pub struct MemoryOccupancy {
 	/// Output
 	#[clap(flatten)]
 	pub output: Output,
+
+	/// Line width
+	#[clap(long = "line-width", default_value_t = 1.0)]
+	pub line_width: f64,
 }
 
 /// Output

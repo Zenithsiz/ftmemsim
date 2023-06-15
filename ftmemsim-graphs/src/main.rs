@@ -157,6 +157,7 @@ fn draw_page_migrations_hist(cmd_args: args::PageMigrationsHist) -> Result<(), a
 		.lines(0..data.len(), &data, &[
 			PlotOption::Caption("Migration count"),
 			PlotOption::Color("black"),
+			PlotOption::LineWidth(cmd_args.line_width),
 		])
 		.set_x_log(Some(10.0))
 		.set_y_log(Some(10.0))
@@ -196,6 +197,7 @@ fn draw_page_migrations_hist_multiple(cmd_args: args::PageMigrationsHistMultiple
 		fg_axes2d.lines(0..data.len(), &data, &[
 			PlotOption::Caption(&format!("Migration count ({})", input_file.display())),
 			PlotOption::Color(&color),
+			PlotOption::LineWidth(cmd_args.line_width),
 		]);
 	}
 
@@ -424,7 +426,11 @@ fn draw_page_temperature_avg(cmd_args: args::PageTemperatureAvg) -> Result<(), a
 			points.iter().map(|p| p.temp_avg),
 			points.iter().map(|p| p.page_indexed),
 			points.iter().map(|p| p.temp_err),
-			&[],
+			&[
+				PlotOption::Caption("Page temperature (average)"),
+				PlotOption::Color("black"),
+				PlotOption::LineWidth(cmd_args.line_width),
+			],
 		)
 		.set_x_label("Temperature", &[])
 		.set_y_label("Page (indexed)", &[])
@@ -517,6 +523,7 @@ fn draw_memory_occupancy(cmd_args: args::MemoryOccupancy) -> Result<(), anyhow::
 			&[
 				PlotOption::Caption(&format!("Memory {mem_idx:?} ({})", mem.name)),
 				PlotOption::Color(&color),
+				PlotOption::LineWidth(cmd_args.line_width),
 			],
 		);
 	}
