@@ -34,6 +34,7 @@ fn main() -> Result<(), anyhow::Error> {
 		args::SubCmd::PageMigrationsHistMultiple(cmd_args) => self::draw_page_migrations_hist_multiple(cmd_args)?,
 		args::SubCmd::PageLocation(cmd_args) => self::draw_page_location(cmd_args)?,
 		args::SubCmd::PageTemperature(cmd_args) => self::draw_page_temperature(cmd_args)?,
+		args::SubCmd::MemoryOccupancy(cmd_args) => self::draw_memory_occupancy(cmd_args)?,
 	}
 
 	Ok(())
@@ -111,12 +112,12 @@ fn draw_page_migrations(cmd_args: &args::PageMigrations) -> Result<(), anyhow::E
 			.hemem
 			.memories
 			.get(prev_mem_idx)
-			.context("Config had less memories than input file")?;
+			.expect("Config had less memories than input file");
 		let cur_mem = config
 			.hemem
 			.memories
 			.get(cur_mem_idx)
-			.context("Config had less memories than input file")?;
+			.expect("Config had less memories than input file");
 
 		// Note: Since we're drawing back-to-front, we need the first points
 		//       to be larger than the last.
@@ -371,6 +372,108 @@ fn draw_page_temperature(cmd_args: args::PageTemperature) -> Result<(), anyhow::
 		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
 		.set_y_range(AutoOption::Fix(0.0), AutoOption::Fix(page_ptr_idxs.len() as f64))
 		.set_cb_range(AutoOption::Fix(0.0), AutoOption::Fix(max_temp as f64));
+
+	// Then output the plot
+	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;
+
+	Ok(())
+}
+
+fn draw_memory_occupancy(cmd_args: args::MemoryOccupancy) -> Result<(), anyhow::Error> {
+	// Parse the config and input file
+	let config = self::read_config(&cmd_args.config_file)
+		.with_context(|| format!("Unable to read config file: {:?}", cmd_args.config_file))?;
+	let data = self::read_data(&cmd_args.input_file)
+		.with_context(|| format!("Unable to read data file: {:?}", cmd_args.input_file))?;
+
+	// TODO: 0, 1 defaults are weird: We don't actually use them
+	let min_time = data.time_span.as_ref().map_or(0, |range| range.start);
+	let max_time = data.time_span.as_ref().map_or(1, |range| range.end - 1);
+
+	// Calculate all the occupancies over time
+	let mut memories_occupancy = (0..config.hemem.memories.len())
+		.map(|mem_idx| (mem_idx, 0_usize))
+		.collect::<BTreeMap<_, _>>();
+
+	// Note: We sort and group all migrations by time, so we can process each "time step"
+	//       all at once, then only output the final occupancies. This is to avoid having
+	//       occupancies go above the capacity temporarily within one time step.
+	let occupancies = data
+		.hemem
+		.page_migrations
+		.migrations
+		.values()
+		.flatten()
+		.sorted_by_key(|migration| migration.time)
+		.group_by(|migration| migration.time)
+		.into_iter()
+		.flat_map(|(time, migrations)| {
+			let time = (time - min_time) as f64 / (max_time - min_time) as f64;
+
+			// Updates the occupancy of a memory by `delta`.
+			// Panics if the occupancy would be negative or above `usize::MAX`.
+			let mut update_occupancy = |mem_idx, delta| {
+				let occupancy = memories_occupancy
+					.get_mut(&mem_idx)
+					.expect("Config had less memories than input file");
+
+				*occupancy = occupancy
+					.checked_add_signed(delta)
+					.expect("Memory occupancy was negative / above `usize::MAX`");
+
+				(mem_idx, (time, *occupancy))
+			};
+
+			// Process all migrations in this time step
+			// Note: We select the *last* unique value by reversing, then
+			//       selecting the first unique value with `.unique_by`.
+			migrations
+				.flat_map(|migration| {
+					let prev_mem_occupancy = migration.prev_mem_idx.map(|mem_idx| update_occupancy(mem_idx, -1));
+					let cur_mem_occupancy = update_occupancy(migration.cur_mem_idx, 1);
+
+					[prev_mem_occupancy, Some(cur_mem_occupancy)]
+				})
+				.flatten()
+				.collect::<Vec<_>>()
+				.into_iter()
+				.rev()
+				.unique_by(|&(mem_idx, _)| mem_idx)
+		})
+		.into_group_map()
+		.into_iter()
+		.collect::<BTreeMap<_, _>>();
+
+	// Finally create the plot
+	let mut fg = gnuplot::Figure::new();
+	let fg_axes2d = fg.axes2d();
+
+	for (mem_idx, occupancies) in occupancies {
+		let color_progress = 1.0 - mem_idx as f64 / (config.hemem.memories.len() as f64 - 1.0);
+		let color = LinSrgb::new(1.0, 0.0, 0.0).mix(LinSrgb::new(0.0, 1.0, 0.0), color_progress);
+		let color = format!("#{:x}", color.into_format::<u8>());
+
+		let mem = config
+			.hemem
+			.memories
+			.get(mem_idx)
+			.expect("Config had less memories than input file");
+
+		fg_axes2d.lines(
+			occupancies.iter().map(|(time, _)| time),
+			occupancies.iter().map(|(_, occupancy)| occupancy),
+			&[
+				PlotOption::Caption(&format!("Memory {mem_idx:?} ({})", mem.name)),
+				PlotOption::Color(&color),
+			],
+		);
+	}
+
+	fg_axes2d
+		.set_x_label("Time (normalized)", &[])
+		.set_y_label("Page occupancy", &[])
+		.set_x_range(AutoOption::Fix(0.0), AutoOption::Fix(1.0))
+		.set_y_range(AutoOption::Fix(0.0), AutoOption::Auto);
 
 	// Then output the plot
 	self::handle_output(&cmd_args.output, &mut fg).context("Unable to handle output")?;

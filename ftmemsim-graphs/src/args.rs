@@ -24,7 +24,6 @@ pub struct Args {
 }
 
 /// Sub-command
-#[expect(clippy::enum_variant_names)] // It's a coincidence, we'll add more varied names
 #[derive(Debug, clap::Subcommand)]
 pub enum SubCmd {
 	#[clap(name = "page-migrations")]
@@ -43,6 +42,9 @@ pub enum SubCmd {
 
 	#[clap(name = "page-temperature")]
 	PageTemperature(PageTemperature),
+
+	#[clap(name = "memory-occupancy")]
+	MemoryOccupancy(MemoryOccupancy),
 }
 
 /// Creates a graph for page migrations
@@ -120,6 +122,21 @@ pub struct PageTemperature {
 	/// Point size
 	#[clap(long = "point-size", default_value_t = 0.5)]
 	pub point_size: f64,
+}
+
+/// Memory Occupancy
+#[derive(Debug, clap::Args)]
+pub struct MemoryOccupancy {
+	/// Input
+	pub input_file: PathBuf,
+
+	/// Config file
+	#[clap(long = "config")]
+	pub config_file: PathBuf,
+
+	/// Output
+	#[clap(flatten)]
+	pub output: Output,
 }
 
 /// Output

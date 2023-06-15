@@ -82,4 +82,15 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	--point-size "$GRAPH_POINT_SIZE" \
 	&
 
+cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
+	--log-file-append \
+	--log-file "$LOG_FILE" \
+	memory-occupancy \
+	"$OUTPUT_FILE" \
+	--config "$CONFIG" \
+	--output "resources/data/memory_occupancy.$GRAPH_OUTPUT_FORMAT" \
+	--output-width  "$GRAPH_OUTPUT_WIDTH" \
+	--output-height "$GRAPH_OUTPUT_HEIGHT" \
+	&
+
 wait
