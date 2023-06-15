@@ -2,9 +2,6 @@
 
 set -e
 
-RUST_FILE_LOG="trace,ftmemsim::classifiers::hemem=debug"
-LOG_FILE="latest.log"
-
 #PROFILE="dev"
 PROFILE="release"
 
@@ -26,12 +23,8 @@ GRAPH_OUTPUT_FORMAT="png"
 GRAPH_POINT_SIZE="2.0"
 GRAPH_LINE_WIDTH="4.0"
 
-rm -rf "$LOG_FILE"
-
 echo "Simulating"
 cargo run --profile "$PROFILE" -p ftmemsim -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	--config "$CONFIG" \
 	"$TRACE_FILE" \
 	--output "$OUTPUT_FILE"
@@ -40,8 +33,6 @@ echo "Creating graphs"
 cargo build --profile "$PROFILE" -p ftmemsim-graphs
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	page-migrations \
 	"$OUTPUT_FILE" \
 	--config "$CONFIG" \
@@ -52,8 +43,6 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	page-migrations-hist \
 	"$OUTPUT_FILE" \
 	--output "resources/data/page_migrations_hist.$GRAPH_OUTPUT_FORMAT" \
@@ -63,8 +52,6 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	page-location \
 	"$OUTPUT_FILE" \
 	--config "$CONFIG" \
@@ -75,8 +62,6 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	page-temperature \
 	"$OUTPUT_FILE" \
 	--output "resources/data/page_temperature.$GRAPH_OUTPUT_FORMAT" \
@@ -86,8 +71,6 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	page-temperature-avg \
 	"$OUTPUT_FILE" \
 	--output "resources/data/page_temperature_avg.$GRAPH_OUTPUT_FORMAT" \
@@ -97,8 +80,6 @@ cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
 	&
 
 cargo run --profile "$PROFILE" -p ftmemsim-graphs -- \
-	--log-file-append \
-	--log-file "$LOG_FILE" \
 	memory-occupancy \
 	"$OUTPUT_FILE" \
 	--config "$CONFIG" \
