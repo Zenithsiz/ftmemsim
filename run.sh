@@ -13,6 +13,7 @@ PROFILE="release"
 TRACE_FILE="resources/traces/bfs.g17.n100.t1.trace"
 #TRACE_FILE="resources/traces/bc.g18.n100.t1.trace"
 #TRACE_FILE="examples/simple-rw/output.trace"
+#TRACE_FILE="examples/random-rw/output.trace"
 
 OUTPUT_FILE="resources/data/output.bin.gz"
 
