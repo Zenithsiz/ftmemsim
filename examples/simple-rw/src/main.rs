@@ -3,17 +3,21 @@
 // Imports
 use std::{hint, ptr};
 
+const PAGE_SIZE: usize = 4096;
+
 // TODO: Make these runtime constants?
-const PASSES: usize = 2;
-const WRITES_PER_PASS: usize = 100;
-const READS_PER_PASS: usize = 150;
+const TOTAL_BYTES: usize = 16384 * PAGE_SIZE;
+const PASSES: usize = 8;
+const PASS_STEP: usize = PAGE_SIZE;
+const WRITES_PER_PASS: usize = 128;
+const READS_PER_PASS: usize = 128;
 
 fn main() {
-	let mut v = vec![0u8; 128 * PAGE_SIZE];
+	let mut v = vec![0u8; TOTAL_BYTES];
 
 	// Note: We `step_by` the page size because we only care about initializing a single page.
 	for _ in 0..PASSES {
-		for x in v.iter_mut().step_by(PAGE_SIZE) {
+		for x in v.iter_mut().step_by(PASS_STEP) {
 			for _ in 0..WRITES_PER_PASS {
 				// SAFETY: Target is valid for writes.
 				// Note: We simply want to avoid the write being elided
@@ -23,7 +27,7 @@ fn main() {
 			}
 		}
 
-		for x in v.iter().step_by(PAGE_SIZE) {
+		for x in v.iter_mut().step_by(PASS_STEP) {
 			for _ in 0..READS_PER_PASS {
 				// SAFETY: Target is valid for writes.
 				// Note: We simply want to avoid the write being elided
@@ -34,5 +38,3 @@ fn main() {
 		}
 	}
 }
-
-const PAGE_SIZE: usize = 4096;
