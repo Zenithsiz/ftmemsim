@@ -2,6 +2,8 @@
 
 set -e
 
+cargo build --release --package=parse-valgrind
+
 #CMD="date"
 CMD="./extern/gapbs/bfs -f resources/graphs/g17.sg -n 100"
 
@@ -11,4 +13,4 @@ extern/ftmemsim-valgrind/build/bin/valgrind \
 	--vgdb=no \
 	--log-fd=2 \
 	$CMD \
-	2> >(./target/release/parse-lackey >&2)
+	2> >(./target/release/parse-valgrind >&2)

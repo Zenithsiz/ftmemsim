@@ -6,7 +6,7 @@ members = [
 	"ftmemsim",
 	"ftmemsim-util",
 	"ftmemsim-graphs",
-	"util/parse-lackey",
+	"util/parse-valgrind",
 	"examples/simple-rw",
 	"examples/random-rw",
 ]

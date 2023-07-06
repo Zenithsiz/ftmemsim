@@ -1,5 +1,4 @@
-//! Parses `valgrind`'s `lackey` tool output from stdin,
-//! converting it to a pin trace.
+//! Parses our custom valgrind tool `ftmemsim_parser`.
 
 // Features
 #![feature(if_let_guard)]
