@@ -16,10 +16,10 @@ PROFILE_PATH="release"
 cargo build --profile "$PROFILE"
 
 # Then run valgrind on the example and pipe it to the `lackey` parser
-valgrind \
-	--tool=lackey \
-	--trace-mem=yes \
-	--log-fd=1 \
+../../extern/ftmemsim-valgrind/build/bin/valgrind \
+	--tool=ftmemsim_trace \
 	"../../target/$PROFILE_PATH/simple-rw" \
+	2>&1 \
+	1>/dev/null \
 	|
 	$parse_lackey

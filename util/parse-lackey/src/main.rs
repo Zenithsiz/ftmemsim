@@ -38,17 +38,17 @@ fn main() -> Result<(), anyhow::Error> {
 		}
 
 		// Get the kind of record
-		let (kind, rest)= match &line {
-			line if let Some(rest) = line.strip_prefix(" L ") => (Kind::Read, rest),
-			line if let Some(rest) = line.strip_prefix(" S ") => (Kind::Write, rest),
-			line if let Some(rest) = line.strip_prefix(" M ") => (Kind::Modify, rest),
+		let (kind, addr)= match &line {
+			line if let Some(rest) = line.strip_prefix("I ") => (Kind::Inst, rest),
+			line if let Some(rest) = line.strip_prefix("L ") => (Kind::Read, rest),
+			line if let Some(rest) = line.strip_prefix("S ") => (Kind::Write, rest),
+			line if let Some(rest) = line.strip_prefix("M ") => (Kind::Modify, rest),
 
 			// Else ignore line
 			_ => continue,
 		};
 
 		// Parse the address
-		let (addr, _size) = rest.split_once(',').context("Missing `,` in load record")?;
 		let addr = u64::from_str_radix(addr, 16).context("Unable to parse address")?;
 
 		// Then get the time
@@ -65,6 +65,10 @@ fn main() -> Result<(), anyhow::Error> {
 			time,
 			addr,
 			kind: match kind {
+				// TODO: Should we ignore *all* instructions? Technically
+				//       the user can `mmap` a exec-able region that will be
+				//       watched by hemem, so it might be worth it to not ignore some?
+				Kind::Inst => continue,
 				Kind::Read => ftmemsim::pin_trace::RecordAccessKind::Read,
 				// TODO: What to do with `modify`s? Maybe emit both read+write?
 				Kind::Write | Kind::Modify => ftmemsim::pin_trace::RecordAccessKind::Write,
@@ -82,6 +86,7 @@ fn main() -> Result<(), anyhow::Error> {
 /// Record kind
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Kind {
+	Inst,
 	Read,
 	Write,
 	Modify,
