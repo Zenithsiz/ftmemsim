@@ -89,7 +89,12 @@ impl HeMem {
 	/// Panics if `mem_idx` is an invalid memory index
 	pub fn cool_memory(&mut self, cur_time: u64, mem_idx: MemIdx, count: usize) -> usize {
 		let mut cooled_pages = 0;
-		for page_ptr in self.page_table.coldest_pages(mem_idx, count) {
+		for page_ptr in self.page_table.cold_pages(
+			self.config.read_hot_threshold,
+			self.config.write_hot_threshold,
+			mem_idx,
+			count,
+		) {
 			if self.cool_page(cur_time, page_ptr).is_ok() {
 				cooled_pages += 1;
 			}

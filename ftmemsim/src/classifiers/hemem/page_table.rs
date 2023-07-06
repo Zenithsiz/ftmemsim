@@ -67,14 +67,21 @@ impl PageTable {
 		self.cooling_clock_tick += 1;
 	}
 
-	/// Returns the `count` coldest pages in memory `mem_idx`
-	// TODO: Optimize this function? Runs in `O(N)` with all pages
-	pub fn coldest_pages(&mut self, mem_idx: MemIdx, count: usize) -> Vec<PagePtr> {
+	/// Returns `count` cold pages  in memory `mem_idx`.
+	///
+	/// The chosen memories aren't necessarily the coldest, they are just
+	/// guaranteed to be cold
+	pub fn cold_pages(
+		&mut self,
+		read_hot_threshold: usize,
+		write_hot_threshold: usize,
+		mem_idx: MemIdx,
+		count: usize,
+	) -> Vec<PagePtr> {
 		self.pages
 			.iter_mut()
 			.update(|(_, page)| page.cool_accesses(self.cooling_clock_tick))
-			.filter(|(_, page)| page.mem_idx == mem_idx)
-			.sorted_by_key(|(_, page)| page.temperature())
+			.filter(|(_, page)| page.mem_idx == mem_idx && !page.is_hot(read_hot_threshold, write_hot_threshold))
 			.map(|(&page_ptr, _)| page_ptr)
 			.take(count)
 			.collect()
