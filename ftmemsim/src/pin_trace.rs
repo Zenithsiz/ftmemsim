@@ -41,7 +41,7 @@ impl<R: io::Read + io::Seek> PinTraceReader<R> {
 
 
 			let total_actual_size = reader.stream_len().context("Unable to get stream length")?;
-			let total_expected_size = magic_size + header_size + dbg!(header.records) * record_size;
+			let total_expected_size = magic_size + header_size + header.records * record_size;
 			if total_actual_size != total_expected_size {
 				tracing::warn!(
 					"Pin trace size differs from expected. Found {total_actual_size}, expected {total_expected_size}"
