@@ -1,3 +1,6 @@
 [submodule "extern/ftmemsim-valgrind"]
 	path = extern/ftmemsim-valgrind
 	url = ssh://github.com/Zenithsiz/ftmemsim-valgrind
+[submodule "extern/gapbs"]
+	path = extern/gapbs
+	url = https://github.com/sbeamer/gapbs
