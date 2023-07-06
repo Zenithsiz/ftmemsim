@@ -12,8 +12,6 @@ const PAGE_SIZE: usize = 4096;
 const TOTAL_BYTES: usize = 4096 * PAGE_SIZE;
 const PASSES: usize = 2;
 const PASS_BYTES: usize = TOTAL_BYTES / PAGE_SIZE;
-const WRITES_PER_PASS: usize = 128;
-const READS_PER_PASS: usize = 128;
 
 fn main() {
 	let mut v = vec![0u8; TOTAL_BYTES];
@@ -23,24 +21,20 @@ fn main() {
 		for idx in std::iter::from_fn(|| Some(thread_rng.gen_range(0..TOTAL_BYTES))).take(PASS_BYTES) {
 			let x = &mut v[idx];
 
-			for _ in 0..WRITES_PER_PASS {
-				// SAFETY: Target is valid for writes.
-				// Note: We simply want to avoid the write being elided
-				unsafe {
-					ptr::write_volatile(x, hint::black_box(0));
-				}
+			// SAFETY: Target is valid for writes.
+			// Note: We simply want to avoid the write being elided
+			unsafe {
+				ptr::write_volatile(x, hint::black_box(0));
 			}
 		}
 
 		for idx in std::iter::from_fn(|| Some(thread_rng.gen_range(0..TOTAL_BYTES))).take(PASS_BYTES) {
 			let x = &v[idx];
 
-			for _ in 0..READS_PER_PASS {
-				// SAFETY: Target is valid for reads.
-				// Note: We simply want to avoid the write being elided
-				unsafe {
-					hint::black_box(ptr::read_volatile(x));
-				}
+			// SAFETY: Target is valid for reads.
+			// Note: We simply want to avoid the write being elided
+			unsafe {
+				hint::black_box(ptr::read_volatile(x));
 			}
 		}
 	}

@@ -8,14 +8,14 @@
     "memories": [
       {
         "name": "ram",
-        "page_capacity": 1000,
+        "page_capacity": 4096,
         "read_latency_ns": 1.5,
         "write_latency_ns": 1.0,
         "fault_latency_ns": 10.0
       },
       {
         "name": "optane",
-        "page_capacity": 8000,
+        "page_capacity": 1048576,
         "read_latency_ns": 5.0,
         "write_latency_ns": 4.0,
         "fault_latency_ns": 50.0
