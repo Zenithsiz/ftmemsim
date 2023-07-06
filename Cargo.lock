@@ -880,10 +880,6 @@ name = "simple-rw"
 version = "0.1.0"
 
 [[package]]
-name = "single-page-rw"
-version = "0.1.0"
-
-[[package]]
 name = "siphasher"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"

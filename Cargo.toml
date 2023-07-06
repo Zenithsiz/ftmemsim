@@ -9,7 +9,6 @@ members = [
 	"util/parse-lackey",
 	"examples/simple-rw",
 	"examples/random-rw",
-	"examples/single-page-rw",
 ]
 
 [workspace.dependencies]
