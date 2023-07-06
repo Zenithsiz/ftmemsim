@@ -1,0 +1,3 @@
+[submodule "extern/ftmemsim-valgrind"]
+	path = extern/ftmemsim-valgrind
+	url = ssh://github.com/Zenithsiz/ftmemsim-valgrind
