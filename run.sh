@@ -5,13 +5,11 @@ set -e
 #PROFILE="dev"
 PROFILE="release"
 
-#TRACE_FILE="resources/traces/bfs.g5.n5.trace"
-#TRACE_FILE="resources/traces/bfs.g15.n15.trace"
-TRACE_FILE="resources/traces/bfs.g17.n100.t1.trace"
-#TRACE_FILE="resources/traces/bc.g18.n100.t1.trace"
+TRACE_FILE="resources/traces/bfs.g17.n100.trace"
 #TRACE_FILE="examples/simple-rw/output.trace"
 #TRACE_FILE="examples/random-rw/output.trace"
 #TRACE_FILE="examples/single-page-rw/output.trace"
+#TRACE_FILE="output.trace"
 
 OUTPUT_FILE="resources/data/output.bin.gz"
 

@@ -8,7 +8,7 @@
     "memories": [
       {
         "name": "ram",
-        "page_capacity": 4096,
+        "page_capacity": 512,
         "read_latency_ns": 1.5,
         "write_latency_ns": 1.0,
         "fault_latency_ns": 10.0
