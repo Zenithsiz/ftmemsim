@@ -6,8 +6,8 @@ use std::{hint, ptr};
 const PAGE_SIZE: usize = 4096;
 
 // TODO: Make these runtime constants?
-const TOTAL_BYTES: usize = 16384 * PAGE_SIZE;
-const PASSES: usize = 8;
+const TOTAL_BYTES: usize = 262144 * PAGE_SIZE;
+const PASSES: usize = 20;
 const PASS_STEP: usize = PAGE_SIZE;
 
 fn main() {

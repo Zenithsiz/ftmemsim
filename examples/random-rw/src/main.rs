@@ -9,8 +9,8 @@ use {
 const PAGE_SIZE: usize = 4096;
 
 // TODO: Make these runtime constants?
-const TOTAL_BYTES: usize = 4096 * PAGE_SIZE;
-const PASSES: usize = 2;
+const TOTAL_BYTES: usize = 262144 * PAGE_SIZE;
+const PASSES: usize = 20;
 const PASS_BYTES: usize = TOTAL_BYTES / PAGE_SIZE;
 
 fn main() {
@@ -18,8 +18,8 @@ fn main() {
 
 	let mut thread_rng = rand::thread_rng();
 	for _ in 0..PASSES {
-		for idx in std::iter::from_fn(|| Some(thread_rng.gen_range(0..TOTAL_BYTES))).take(PASS_BYTES) {
-			let x = &mut v[idx];
+		for idx in std::iter::from_fn(|| Some(thread_rng.gen_range(0..(TOTAL_BYTES / PAGE_SIZE)))).take(PASS_BYTES) {
+			let x = &mut v[PAGE_SIZE * idx];
 
 			// SAFETY: Target is valid for writes.
 			// Note: We simply want to avoid the write being elided
@@ -28,8 +28,8 @@ fn main() {
 			}
 		}
 
-		for idx in std::iter::from_fn(|| Some(thread_rng.gen_range(0..TOTAL_BYTES))).take(PASS_BYTES) {
-			let x = &v[idx];
+		for idx in std::iter::from_fn(|| Some(thread_rng.gen_range(0..(TOTAL_BYTES / PAGE_SIZE)))).take(PASS_BYTES) {
+			let x = &v[PAGE_SIZE * idx];
 
 			// SAFETY: Target is valid for reads.
 			// Note: We simply want to avoid the write being elided
