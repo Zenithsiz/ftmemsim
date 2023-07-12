@@ -53,6 +53,7 @@ impl Simulator {
 		// Go through all records
 		let mut first_time = None;
 		let mut last_time = None;
+		let mut traces_since_log = 0;
 		for (record_idx, record_res) in record_it.enumerate().step_by(self.trace_skip + 1) {
 			let record = record_res.context("Unable to read next record")?;
 
@@ -66,16 +67,25 @@ impl Simulator {
 			classifier
 				.handle_trace(trace)
 				.context("Unable to handle trace with classifier")?;
+			traces_since_log += 1;
 
 			// Then show debug output, if it's been long enough
 			let cur_time = Instant::now();
-			if cur_time.duration_since(last_debug_time) >= self.debug_output_period {
+			let elapsed_debug_duration = cur_time.duration_since(last_debug_time);
+			if elapsed_debug_duration >= self.debug_output_period {
+				let estimated_time_left_secs = (total_records as f64 - record_idx as f64) /
+					(traces_since_log as f64 / elapsed_debug_duration.as_secs_f64());
+
 				let records_processed_percentage = 100.0 * (record_idx as f64 / total_records as f64);
 				tracing::info!(
-					"[{records_processed_percentage:.2}%] Debug: {}",
+					"[{records_processed_percentage:.2}%] Estimated time left: {estimated_time_left_secs:.2}s",
+				);
+				tracing::info!(
+					"Debug: {}",
 					ftmemsim_util::DisplayWrapper::new(|f| classifier.fmt_debug(f))
 				);
-				last_debug_time = cur_time
+				last_debug_time = cur_time;
+				traces_since_log = 0;
 			}
 		}
 
