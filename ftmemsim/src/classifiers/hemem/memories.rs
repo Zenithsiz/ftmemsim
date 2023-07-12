@@ -1,7 +1,7 @@
 //! Memories
 
 // Imports
-use crate::util::FemtoDuration;
+use ftmemsim_util::FemtoDuration;
 
 /// Memories.
 ///
@@ -28,6 +28,14 @@ impl Memories {
 			.iter_mut()
 			.enumerate()
 			.map(|(idx, mem)| (MemIdx(idx), mem))
+	}
+
+	/// Returns a memory by it's memory index
+	///
+	/// # Panics
+	/// Panics if `idx` is an invalid memory index.
+	pub fn get_mut(&mut self, idx: MemIdx) -> &mut Memory {
+		self.memories.get_mut(idx.0).expect("Memory index was invalid")
 	}
 
 	/// Migrates a page from `src` to `dst`
@@ -75,8 +83,15 @@ impl Memories {
 }
 
 /// Memory index
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct MemIdx(usize);
+
+impl MemIdx {
+	/// Returns a memory index as a usize
+	pub fn to_usize(self) -> usize {
+		self.0
+	}
+}
 
 /// Memory
 #[derive(Clone, Debug)]

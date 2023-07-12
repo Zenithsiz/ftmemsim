@@ -12,8 +12,8 @@ pub struct Statistics {
 	/// All accesses
 	accesses: Vec<Access>,
 
-	/// Page locations
-	page_locations: HashMap<PagePtr, Vec<PageLocation>>,
+	/// Page migrations
+	page_migration: HashMap<PagePtr, Vec<PageMigration>>,
 }
 
 impl Statistics {
@@ -21,7 +21,7 @@ impl Statistics {
 	pub fn new() -> Self {
 		Self {
 			accesses:       vec![],
-			page_locations: HashMap::new(),
+			page_migration: HashMap::new(),
 		}
 	}
 
@@ -30,9 +30,9 @@ impl Statistics {
 		self.accesses.push(access);
 	}
 
-	/// Registers a new location for a page
-	pub fn register_page_location(&mut self, page_ptr: PagePtr, page_location: PageLocation) {
-		self.page_locations.entry(page_ptr).or_default().push(page_location);
+	/// Registers migration for a page
+	pub fn register_page_migration(&mut self, page_ptr: PagePtr, page_migration: PageMigration) {
+		self.page_migration.entry(page_ptr).or_default().push(page_migration);
 	}
 
 	/// Returns all accesses
@@ -40,9 +40,15 @@ impl Statistics {
 		&self.accesses
 	}
 
-	/// Returns all page locations
-	pub fn page_locations(&self) -> &HashMap<PagePtr, Vec<PageLocation>> {
-		&self.page_locations
+	/// Returns all page migrations
+	pub fn page_migrations(&self) -> &HashMap<PagePtr, Vec<PageMigration>> {
+		&self.page_migration
+	}
+}
+
+impl Default for Statistics {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 
@@ -67,6 +73,9 @@ pub struct Access {
 
 	/// Page current temperature
 	pub cur_temperature: usize,
+
+	/// Caused a global cooling?
+	pub caused_cooling: bool,
 }
 
 /// Access kind for [`Access`]
@@ -89,12 +98,15 @@ pub enum AccessMem {
 	Resided(MemIdx),
 }
 
-/// Page location
+/// Page migration
 #[derive(Clone, Debug)]
-pub struct PageLocation {
+pub struct PageMigration {
 	/// Timestamp
 	pub time: u64,
 
+	/// Previous memory
+	pub prev_mem_idx: Option<MemIdx>,
+
 	/// Memory
-	pub mem_idx: MemIdx,
+	pub cur_mem_idx: MemIdx,
 }

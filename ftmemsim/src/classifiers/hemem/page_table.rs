@@ -3,8 +3,7 @@
 // Imports
 use {
 	super::memories::MemIdx,
-	itertools::Itertools,
-	std::collections::{btree_map, BTreeMap},
+	std::collections::{btree_map, BTreeMap, BTreeSet},
 };
 
 /// Page table
@@ -13,6 +12,11 @@ pub struct PageTable {
 	/// All pages, by their address
 	// TODO: `HashMap` with custom hash? We don't use the order
 	pages: BTreeMap<PagePtr, Page>,
+
+	/// Pages, by memory.
+	///
+	/// An index to be able to quickly find pages by their memory
+	pages_by_mem: BTreeMap<MemIdx, BTreeSet<PagePtr>>,
 
 	/// Current cooling clock tick
 	cooling_clock_tick: usize,
@@ -23,6 +27,7 @@ impl PageTable {
 	pub fn new() -> Self {
 		Self {
 			pages:              BTreeMap::new(),
+			pages_by_mem:       BTreeMap::new(),
 			cooling_clock_tick: 0,
 		}
 	}
@@ -42,6 +47,21 @@ impl PageTable {
 		Some(page)
 	}
 
+	/// Moves a page to `mem_idx`
+	///
+	/// # Panics
+	/// Panics if `page_ptr` is an invalid page pointer
+	pub fn move_mem(&mut self, page_ptr: PagePtr, mem_idx: MemIdx) {
+		let page = self.pages.get_mut(&page_ptr).expect("Invalid page pointer");
+		page.cool_accesses(self.cooling_clock_tick);
+
+		if mem_idx != page.mem_idx {
+			self.pages_by_mem.entry(page.mem_idx).or_default().remove(&page_ptr);
+			self.pages_by_mem.entry(mem_idx).or_default().insert(page_ptr);
+			page.mem_idx = mem_idx;
+		}
+	}
+
 	/// Inserts a new page into this page table.
 	///
 	/// # Errors
@@ -51,7 +71,9 @@ impl PageTable {
 			btree_map::Entry::Vacant(entry) => {
 				// Note: We cool it before inserting to ensure that the page is up to date.
 				page.cool_accesses(self.cooling_clock_tick);
+				self.pages_by_mem.entry(page.mem_idx).or_default().insert(page.ptr);
 				entry.insert(page);
+
 
 				Ok(())
 			},
@@ -67,17 +89,34 @@ impl PageTable {
 		self.cooling_clock_tick += 1;
 	}
 
-	/// Returns the `count` coldest pages in memory `mem_idx`
-	// TODO: Optimize this function? Runs in `O(N)` with all pages
-	pub fn coldest_pages(&mut self, mem_idx: MemIdx, count: usize) -> Vec<PagePtr> {
-		self.pages
-			.iter_mut()
-			.update(|(_, page)| page.cool_accesses(self.cooling_clock_tick))
-			.filter(|(_, page)| page.mem_idx == mem_idx)
-			.sorted_by_key(|(_, page)| page.temperature())
-			.map(|(&page_ptr, _)| page_ptr)
-			.take(count)
-			.collect()
+	/// Returns `count` cold pages  in memory `mem_idx`.
+	///
+	/// The chosen memories aren't necessarily the coldest, they are just
+	/// guaranteed to be cold
+	pub fn cold_pages(
+		&mut self,
+		read_hot_threshold: usize,
+		write_hot_threshold: usize,
+		mem_idx: MemIdx,
+	) -> impl Iterator<Item = PagePtr> + '_ {
+		let pages = &self.pages;
+		self.pages_by_mem
+			.entry(mem_idx)
+			.or_default()
+			.iter()
+			.copied()
+			.filter(move |page_ptr| {
+				!pages
+					.get(page_ptr)
+					.expect("Invalid page pointer")
+					.is_hot(read_hot_threshold, write_hot_threshold)
+			})
+	}
+}
+
+impl Default for PageTable {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 
@@ -115,11 +154,6 @@ impl Page {
 		self.mem_idx
 	}
 
-	/// Moves this page to `mem_idx`
-	pub fn move_mem(&mut self, mem_idx: MemIdx) {
-		self.mem_idx = mem_idx;
-	}
-
 	/// Registers a read access
 	pub fn register_read_access(&mut self) {
 		self.adjusted_read_accesses += 1;
@@ -138,7 +172,7 @@ impl Page {
 	/// Returns this page's temperature
 	pub fn temperature(&self) -> usize {
 		// TODO: Tune this definition?
-		self.adjusted_read_accesses * 1 + self.adjusted_write_accesses * 2
+		self.adjusted_read_accesses + self.adjusted_write_accesses * 2
 	}
 
 	/// Returns if either read or write accesses are over a threshold
@@ -173,7 +207,7 @@ impl std::fmt::Debug for PagePtr {
 
 impl PagePtr {
 	/// Page mask
-	pub const PAGE_MASK: u64 = (1 << 12 - 1);
+	pub const PAGE_MASK: u64 = (1 << 12) - 1;
 
 	/// Creates a page pointer from a `u64`.
 	///
@@ -183,7 +217,7 @@ impl PagePtr {
 	}
 
 	/// Returns the page pointer as a u64
-	pub fn _to_u64(self) -> u64 {
+	pub fn to_u64(self) -> u64 {
 		self.0
 	}
 }

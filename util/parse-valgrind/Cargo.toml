@@ -1,0 +1,9 @@
+[package]
+name = "parse-valgrind"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+anyhow = { workspace = true }
+ftmemsim = { workspace = true }

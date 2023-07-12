@@ -1,7 +1,11 @@
 //! Utilities
 
+// Features
+#![feature(decl_macro)]
+
 // Modules
-mod duration;
+pub mod duration;
+pub mod logger;
 
 // Exports
 pub use duration::FemtoDuration;

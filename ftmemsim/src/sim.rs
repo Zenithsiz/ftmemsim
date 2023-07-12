@@ -2,11 +2,12 @@
 
 // Imports
 use {
-	crate::{pin_trace, pin_trace::PinTraceReader, util},
+	crate::{pin_trace, pin_trace::PinTraceReader},
 	anyhow::Context,
 	std::{
 		fmt,
 		io,
+		ops::Range,
 		time::{Duration, Instant},
 	},
 };
@@ -21,18 +22,18 @@ pub struct Simulator {
 	/// while a value of 1 implies it receives every other record as a trace.
 	trace_skip: usize,
 
-	/// Debug output frequency
+	/// Debug output period
 	///
 	/// Interval in which to output debug output for the classifier
-	debug_output_freq: Duration,
+	debug_output_period: Duration,
 }
 
 impl Simulator {
 	/// Creates a new simulator
-	pub fn new(trace_skip: usize, debug_output_freq: Duration) -> Self {
+	pub fn new(trace_skip: usize, debug_output_period: Duration) -> Self {
 		Self {
 			trace_skip,
-			debug_output_freq,
+			debug_output_period,
 		}
 	}
 
@@ -41,40 +42,65 @@ impl Simulator {
 		&mut self,
 		pin_trace_reader: &mut PinTraceReader<impl io::Read + io::Seek>,
 		classifier: &mut C,
-	) -> Result<(), anyhow::Error> {
+	) -> Result<RunOutput, anyhow::Error> {
 		// Note: We start in the past so that we output right away at the start
-		let mut last_debug_time = Instant::now() - self.debug_output_freq;
+		let mut last_debug_time = Instant::now() - self.debug_output_period;
 
 		// Create the record iterator
 		let total_records = pin_trace_reader.records_remaining();
 		let record_it = std::iter::from_fn(|| pin_trace_reader.read_next().transpose());
 
 		// Go through all records
+		let mut first_time = None;
+		let mut last_time = None;
+		let mut traces_since_log = 0;
 		for (record_idx, record_res) in record_it.enumerate().step_by(self.trace_skip + 1) {
 			let record = record_res.context("Unable to read next record")?;
+
+			// Update the first and last time.
+			// TODO: We're assuming all records are ordered by time, check when this *doesn't* happen
+			first_time.get_or_insert(record.time);
+			last_time = Some(record.time);
 
 			// Handle each trace
 			let trace = Trace { record };
 			classifier
 				.handle_trace(trace)
 				.context("Unable to handle trace with classifier")?;
+			traces_since_log += 1;
 
 			// Then show debug output, if it's been long enough
 			let cur_time = Instant::now();
-			if cur_time.duration_since(last_debug_time) >= self.debug_output_freq {
+			let elapsed_debug_duration = cur_time.duration_since(last_debug_time);
+			if elapsed_debug_duration >= self.debug_output_period {
+				let estimated_time_left_secs = (total_records as f64 - record_idx as f64) /
+					(traces_since_log as f64 / elapsed_debug_duration.as_secs_f64());
+
 				let records_processed_percentage = 100.0 * (record_idx as f64 / total_records as f64);
 				tracing::info!(
-					"[{records_processed_percentage:.2}%] Debug: {}",
-					util::DisplayWrapper::new(|f| classifier.fmt_debug(f))
+					"[{records_processed_percentage:.2}%] Estimated time left: {estimated_time_left_secs:.2}s",
 				);
-				last_debug_time = cur_time
+				tracing::info!(
+					"Debug: {}",
+					ftmemsim_util::DisplayWrapper::new(|f| classifier.fmt_debug(f))
+				);
+				last_debug_time = cur_time;
+				traces_since_log = 0;
 			}
 		}
 
-		Ok(())
+		Ok(RunOutput {
+			time_span: first_time.zip(last_time).map(|(first, last)| first..(last + 1)),
+		})
 	}
 }
 
+/// Output for [`Simulator::run`]
+#[derive(Clone, Debug)]
+pub struct RunOutput {
+	/// Time span
+	pub time_span: Option<Range<u64>>,
+}
 
 /// Classifier
 pub trait Classifier {

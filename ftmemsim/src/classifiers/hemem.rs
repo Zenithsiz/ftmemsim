@@ -17,7 +17,6 @@ use {
 	self::memories::MemIdx,
 	crate::{pin_trace, sim},
 	anyhow::Context,
-	itertools::Itertools,
 	std::fmt,
 };
 
@@ -84,19 +83,31 @@ impl HeMem {
 
 	/// Cools a memory by (at most) `count` pages.
 	///
-	/// Returns the number of pages cooled.
+	/// Returns if any pages were cooled
 	///
 	/// # Panics
 	/// Panics if `mem_idx` is an invalid memory index
-	pub fn cool_memory(&mut self, cur_time: u64, mem_idx: MemIdx, count: usize) -> usize {
-		let mut cooled_pages = 0;
-		for page_ptr in self.page_table.coldest_pages(mem_idx, count) {
-			if self.cool_page(cur_time, page_ptr).is_ok() {
-				cooled_pages += 1;
-			}
+	// TODO: Cool more than just 1 page at a time?
+	pub fn cool_memory(&mut self, cur_time: u64, mem_idx: MemIdx) -> bool {
+		// If there's isn't slower memory than `mem_idx`, we can't cool it
+		if self.memories.slower_memory(mem_idx).is_none() {
+			return false;
 		}
 
-		cooled_pages
+		// Get a cold page to cool, else we can't cool
+		let Some(page_ptr) = self
+			.page_table
+			.cold_pages(self.config.read_hot_threshold, self.config.write_hot_threshold, mem_idx)
+			.next()
+		else {
+			return false;
+		};
+
+		// Then try to cool the page
+		match self.cool_page(cur_time, page_ptr) {
+			Ok(()) => true,
+			Err(_) => false,
+		}
 	}
 
 	/// Migrates a page, possibly cooling the destination if full.
@@ -114,12 +125,13 @@ impl HeMem {
 		match self.memories.migrate_page(src_mem_idx, dst_mem_idx) {
 			// If we managed to, move the page's memory
 			Ok(()) => {
-				page.move_mem(dst_mem_idx);
+				self.page_table.move_mem(page_ptr, dst_mem_idx);
 
 				self.statistics
-					.register_page_location(page_ptr, statistics::PageLocation {
-						time:    cur_time,
-						mem_idx: dst_mem_idx,
+					.register_page_migration(page_ptr, statistics::PageMigration {
+						time:         cur_time,
+						prev_mem_idx: Some(src_mem_idx),
+						cur_mem_idx:  dst_mem_idx,
 					});
 			},
 
@@ -132,22 +144,19 @@ impl HeMem {
 					"Unable to migrate page, cooling destination"
 				);
 
-				// TODO: Cool for more than just 1 page at a time?
-				let pages_cooled = self.cool_memory(cur_time, dst_mem_idx, 1);
-				match pages_cooled > 0 {
+				let pages_cooled = self.cool_memory(cur_time, dst_mem_idx);
+				match pages_cooled {
 					// If we cooled at least 1 page, migrate it
 					true => {
 						self.memories
 							.migrate_page(src_mem_idx, dst_mem_idx)
 							.expect("Just freed some pages when cooling");
-						self.page_table
-							.get_mut(page_ptr)
-							.expect("Page wasn't in page table")
-							.move_mem(dst_mem_idx);
+						self.page_table.move_mem(page_ptr, dst_mem_idx);
 						self.statistics
-							.register_page_location(page_ptr, statistics::PageLocation {
-								time:    cur_time,
-								mem_idx: dst_mem_idx,
+							.register_page_migration(page_ptr, statistics::PageMigration {
+								time:         cur_time,
+								prev_mem_idx: Some(src_mem_idx),
+								cur_mem_idx:  dst_mem_idx,
 							});
 					},
 
@@ -202,6 +211,11 @@ impl HeMem {
 		self.migrate_page(cur_time, page_ptr, dst_mem_idx)
 			.context("Unable to migrate page to faster memory")
 	}
+
+	/// Returns the statistics
+	pub fn statistics(&self) -> &Statistics {
+		&self.statistics
+	}
 }
 
 impl sim::Classifier for HeMem {
@@ -215,11 +229,12 @@ impl sim::Classifier for HeMem {
 			tracing::trace!(?page_ptr, "Mapping page");
 			let page_mem_idx = self.map_page(page_ptr).context("Unable to map page")?;
 
-			// Register an initial page location when mapping
+			// Register an initial page migration when mapping
 			self.statistics
-				.register_page_location(page_ptr, statistics::PageLocation {
-					time:    trace.record.time,
-					mem_idx: page_mem_idx,
+				.register_page_migration(page_ptr, statistics::PageMigration {
+					time:         trace.record.time,
+					prev_mem_idx: None,
+					cur_mem_idx:  page_mem_idx,
 				});
 		};
 		let page = self.page_table.get_mut(page_ptr).expect("Page wasn't in page table");
@@ -234,7 +249,8 @@ impl sim::Classifier for HeMem {
 		};
 
 		// If the page is over the threshold, cool all pages
-		if page.over_threshold(self.config.global_cooling_threshold) {
+		let caused_cooling = page.over_threshold(self.config.global_cooling_threshold);
+		if caused_cooling {
 			self.page_table.cool_all_pages();
 		}
 
@@ -252,7 +268,7 @@ impl sim::Classifier for HeMem {
 			}
 		}
 
-		// If the page was cold and is now hot, head it
+		// If the page was cold and is now hot, heat it
 		if page_is_hot && !page_was_hot {
 			tracing::trace!(?page_ptr, "Page is now hot, warming it");
 			if let Err(err) = self.warm_page(trace.record.time, page_ptr) {
@@ -274,6 +290,7 @@ impl sim::Classifier for HeMem {
 			},
 			prev_temperature: page_prev_temperature,
 			cur_temperature: page_cur_temperature,
+			caused_cooling,
 		});
 
 		Ok(())
@@ -291,56 +308,6 @@ impl sim::Classifier for HeMem {
 			writeln!(
 				f,
 				"Memory {name} ({mem_idx:?}): {len} / {capacity} ({occupancy_percentage:.2}%)"
-			)?;
-		}
-
-		{
-			let total_accesses = self.statistics.accesses().len();
-			writeln!(f, "Total accesses: {total_accesses}")?;
-
-			let average_prev_temperature = self
-				.statistics
-				.accesses()
-				.iter()
-				.map(|access| access.prev_temperature as f64)
-				.collect::<average::Variance>();
-
-			let average_cur_temperature = self
-				.statistics
-				.accesses()
-				.iter()
-				.map(|access| access.cur_temperature as f64)
-				.collect::<average::Variance>();
-
-			writeln!(
-				f,
-				"Average temperature: {:.4} ± {:.4} (Prev), {:.4} ± {:.4} (Cur)",
-				average_prev_temperature.mean(),
-				average_prev_temperature.error(),
-				average_cur_temperature.mean(),
-				average_cur_temperature.error()
-			)?;
-
-			let average_page_locations = self
-				.statistics
-				.page_locations()
-				.iter()
-				.map(|(_, locations)| locations.len() as f64)
-				.collect::<average::Variance>();
-			let (min_page_locations, max_page_locations) = self
-				.statistics
-				.page_locations()
-				.iter()
-				.map(|(_, locations)| locations.len() as f64)
-				.minmax()
-				.into_option()
-				.unwrap_or((f64::NEG_INFINITY, f64::INFINITY));
-
-			writeln!(
-				f,
-				"Average page locations: {:.4} ± {:.4} ({min_page_locations:.2}..{max_page_locations:.2})",
-				average_page_locations.mean(),
-				average_page_locations.error()
 			)?;
 		}
 

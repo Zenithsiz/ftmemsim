@@ -1,14 +1,22 @@
 {
   "cSpell.words": [
+    "bincode",
     "byteorder",
     "femto",
     "FEMTOS",
     "ftmemsim",
     "hemem",
     "itertools",
+    "lerp",
+    "Lerps",
+    "linejoin",
+    "Mgzip",
     "minmax",
     "optane",
     "pico",
-    "PICOS"
+    "PICOS",
+    "plotlib",
+    "powf",
+    "rrggbb"
   ]
 }

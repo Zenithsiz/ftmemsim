@@ -1,0 +1,12 @@
+[package]
+name = "ftmemsim-util"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+serde = { workspace = true }
+itertools = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+extend = { workspace = true }
