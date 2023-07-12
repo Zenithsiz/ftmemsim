@@ -56,8 +56,8 @@ impl PageTable {
 		page.cool_accesses(self.cooling_clock_tick);
 
 		if mem_idx != page.mem_idx {
-			self.pages_by_mem.entry(mem_idx).or_default().remove(&page_ptr);
-			self.pages_by_mem.entry(page.mem_idx).or_default().insert(page_ptr);
+			self.pages_by_mem.entry(page.mem_idx).or_default().remove(&page_ptr);
+			self.pages_by_mem.entry(mem_idx).or_default().insert(page_ptr);
 			page.mem_idx = mem_idx;
 		}
 	}
