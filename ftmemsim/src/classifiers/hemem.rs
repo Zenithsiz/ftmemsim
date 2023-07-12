@@ -83,24 +83,31 @@ impl HeMem {
 
 	/// Cools a memory by (at most) `count` pages.
 	///
-	/// Returns the number of pages cooled.
+	/// Returns if any pages were cooled
 	///
 	/// # Panics
 	/// Panics if `mem_idx` is an invalid memory index
-	pub fn cool_memory(&mut self, cur_time: u64, mem_idx: MemIdx, count: usize) -> usize {
-		let mut cooled_pages = 0;
-		for page_ptr in self.page_table.cold_pages(
-			self.config.read_hot_threshold,
-			self.config.write_hot_threshold,
-			mem_idx,
-			count,
-		) {
-			if self.cool_page(cur_time, page_ptr).is_ok() {
-				cooled_pages += 1;
-			}
+	// TODO: Cool more than just 1 page at a time?
+	pub fn cool_memory(&mut self, cur_time: u64, mem_idx: MemIdx) -> bool {
+		// If there's isn't slower memory than `mem_idx`, we can't cool it
+		if self.memories.slower_memory(mem_idx).is_none() {
+			return false;
 		}
 
-		cooled_pages
+		// Get a cold page to cool, else we can't cool
+		let Some(page_ptr) = self
+			.page_table
+			.cold_pages(self.config.read_hot_threshold, self.config.write_hot_threshold, mem_idx)
+			.next()
+		else {
+			return false;
+		};
+
+		// Then try to cool the page
+		match self.cool_page(cur_time, page_ptr) {
+			Ok(()) => true,
+			Err(_) => false,
+		}
 	}
 
 	/// Migrates a page, possibly cooling the destination if full.
@@ -118,7 +125,7 @@ impl HeMem {
 		match self.memories.migrate_page(src_mem_idx, dst_mem_idx) {
 			// If we managed to, move the page's memory
 			Ok(()) => {
-				page.move_mem(dst_mem_idx);
+				self.page_table.move_mem(page_ptr, dst_mem_idx);
 
 				self.statistics
 					.register_page_migration(page_ptr, statistics::PageMigration {
@@ -137,18 +144,14 @@ impl HeMem {
 					"Unable to migrate page, cooling destination"
 				);
 
-				// TODO: Cool for more than just 1 page at a time?
-				let pages_cooled = self.cool_memory(cur_time, dst_mem_idx, 1);
-				match pages_cooled > 0 {
+				let pages_cooled = self.cool_memory(cur_time, dst_mem_idx);
+				match pages_cooled {
 					// If we cooled at least 1 page, migrate it
 					true => {
 						self.memories
 							.migrate_page(src_mem_idx, dst_mem_idx)
 							.expect("Just freed some pages when cooling");
-						self.page_table
-							.get_mut(page_ptr)
-							.expect("Page wasn't in page table")
-							.move_mem(dst_mem_idx);
+						self.page_table.move_mem(page_ptr, dst_mem_idx);
 						self.statistics
 							.register_page_migration(page_ptr, statistics::PageMigration {
 								time:         cur_time,
@@ -265,7 +268,7 @@ impl sim::Classifier for HeMem {
 			}
 		}
 
-		// If the page was cold and is now hot, head it
+		// If the page was cold and is now hot, heat it
 		if page_is_hot && !page_was_hot {
 			tracing::trace!(?page_ptr, "Page is now hot, warming it");
 			if let Err(err) = self.warm_page(trace.record.time, page_ptr) {

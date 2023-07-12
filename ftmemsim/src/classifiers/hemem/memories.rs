@@ -30,6 +30,14 @@ impl Memories {
 			.map(|(idx, mem)| (MemIdx(idx), mem))
 	}
 
+	/// Returns a memory by it's memory index
+	///
+	/// # Panics
+	/// Panics if `idx` is an invalid memory index.
+	pub fn get_mut(&mut self, idx: MemIdx) -> &mut Memory {
+		self.memories.get_mut(idx.0).expect("Memory index was invalid")
+	}
+
 	/// Migrates a page from `src` to `dst`
 	///
 	/// Returns `Err` if the source memory is empty or the destination memory is full.
@@ -75,7 +83,7 @@ impl Memories {
 }
 
 /// Memory index
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct MemIdx(usize);
 
 impl MemIdx {
